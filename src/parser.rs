@@ -43,10 +43,18 @@ named!(global_decl<ast::Node>,
        chain!(
            tag!("Global") ~
                multispace ~
-               name: identifier,
+               name: identifier ~
+               type_specifier: opt!(type_specifier),
            || ast::Node::GlobalDecl(ast::GlobalDecl {
-               name: name
+               name: name,
+               type_specifier: type_specifier
            })));
+
+named!(type_specifier<ast::TypeSpecifier>,
+       alt!(
+           chain!(tag!("%"), || ast::TypeSpecifier::Int) |
+           chain!(tag!("#"), || ast::TypeSpecifier::Float) |
+           chain!(tag!("$"), || ast::TypeSpecifier::String)));
 
 named!(function_call<ast::Statement>,
        chain!(
