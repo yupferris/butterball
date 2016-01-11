@@ -12,6 +12,11 @@ pub struct FunctionCall {
 }
 
 #[derive(Debug)]
+pub struct GlobalDecl { // TODO: Type, initial expr
+    pub name: String
+}
+
+#[derive(Debug)]
 pub enum Statement {
     FunctionCall(FunctionCall)
 }
@@ -20,6 +25,7 @@ pub enum Statement {
 pub enum Node {
     Comment(String),
     Include(String),
+    GlobalDecl(GlobalDecl),
     Statement(Statement)
 }
 

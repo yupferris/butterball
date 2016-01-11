@@ -23,6 +23,7 @@ named!(node<ast::Node>,
            alt!(
                comment |
                include |
+               global_decl |
                statement),
            opt!(multispace)));
 
@@ -34,9 +35,18 @@ named!(statement<ast::Node>,
 named!(include<ast::Node>,
        chain!(
            tag!("Include") ~
-               opt!(multispace) ~
+               multispace ~
                expr: string_literal,
            || ast::Node::Include(expr)));
+
+named!(global_decl<ast::Node>,
+       chain!(
+           tag!("Global") ~
+               multispace ~
+               name: identifier,
+           || ast::Node::GlobalDecl(ast::GlobalDecl {
+               name: name
+           })));
 
 named!(function_call<ast::Statement>,
        chain!(
