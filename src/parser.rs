@@ -52,16 +52,15 @@ named!(identifier<String>,
        map_res!(map_res!(alpha, str::from_utf8), FromStr::from_str));
 
 named!(arguments<ast::ArgumentList>,
-       many0!(
-           delimited!(
-               opt!(multispace),
-               expression,
-               opt!(multispace))));
+       separated_list!(tag!(","), expression));
 
 named!(expression<ast::Expr>,
-       chain!(
-           string: string_literal,
-           || ast::Expr::String(string)));
+       delimited!(
+           opt!(multispace),
+           chain!(
+               string: string_literal,
+               || ast::Expr::String(string)),
+           opt!(multispace)));
 
 named!(string_literal<String>,
        map_res!(
