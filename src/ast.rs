@@ -19,6 +19,7 @@ pub enum Statement {
 #[derive(Debug)]
 pub enum Node {
     Comment(String),
+    Include(String),
     Statement(Statement)
 }
 
