@@ -14,17 +14,17 @@ pub struct FunctionCall {
 }
 
 #[derive(Debug)]
-pub struct GlobalDecl {
-    pub name: String,
-    pub type_specifier: Option<TypeSpecifier>,
-    pub init_expr: Option<Expr>
-}
-
-#[derive(Debug)]
 pub enum TypeSpecifier {
     Int,
     Float,
     String
+}
+
+#[derive(Debug)]
+pub struct GlobalDecl {
+    pub name: String,
+    pub type_specifier: Option<TypeSpecifier>,
+    pub init_expr: Option<Expr>
 }
 
 #[derive(Debug)]

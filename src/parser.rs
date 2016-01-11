@@ -80,10 +80,12 @@ named!(identifier<String>,
        map_res!(map_res!(alpha, str::from_utf8), FromStr::from_str));
 
 named!(argument_list<ast::ArgumentList>,
-       delimited!(
-           opt!(tag!("(")),
-           separated_list!(tag!(","), expression),
-           opt!(tag!(")"))));
+       alt!(
+           delimited!(
+               tag!("("),
+               separated_list!(tag!(","), expression),
+               tag!(")")) |
+           separated_nonempty_list!(tag!(","), expression)));
 
 named!(expression<ast::Expr>,
        delimited!(
