@@ -27,11 +27,17 @@ named!(node<ast::Node>,
                statement),
            opt!(multispace)));
 
-named!(statement<ast::Node>,
+named!(comment<ast::Node>,
        chain!(
-           statement: function_call,
-           || ast::Node::Statement(
-               ast::Statement::FunctionCall(statement))));
+           comment: map_res!(
+               map_res!(
+                   delimited!(
+                       char!(';'),
+                       is_not!(";\r\n"),
+                       alt!(tag!("\n") | tag!("\r\n"))),
+                   str::from_utf8),
+               FromStr::from_str),
+           || ast::Node::Comment(comment)));
 
 named!(include<ast::Node>,
        chain!(
@@ -39,6 +45,16 @@ named!(include<ast::Node>,
                multispace ~
                expr: string_literal,
            || ast::Node::Include(expr)));
+
+named!(string_literal<String>,
+       map_res!(
+           map_res!(
+               delimited!(
+                   char!('"'),
+                   is_not!("\"\r\n"),
+                   char!('"')),
+               str::from_utf8),
+           FromStr::from_str));
 
 named!(global_decl<ast::Node>,
        chain!(
@@ -59,33 +75,14 @@ named!(global_decl<ast::Node>,
                init_expr: init_expr
            })));
 
+named!(identifier<String>,
+       map_res!(map_res!(alpha, str::from_utf8), FromStr::from_str));
+
 named!(type_specifier<ast::TypeSpecifier>,
        alt!(
            chain!(tag!("%"), || ast::TypeSpecifier::Int) |
            chain!(tag!("#"), || ast::TypeSpecifier::Float) |
            chain!(tag!("$"), || ast::TypeSpecifier::String)));
-
-named!(function_call<ast::FunctionCall>,
-       chain!(
-           function_name: identifier ~
-               type_specifier: opt!(type_specifier) ~
-               arguments: argument_list,
-           || ast::FunctionCall {
-               function_name: function_name,
-               type_specifier: type_specifier,
-               arguments: arguments
-           }));
-
-named!(identifier<String>,
-       map_res!(map_res!(alpha, str::from_utf8), FromStr::from_str));
-
-named!(argument_list<ast::ArgumentList>,
-       alt!(
-           delimited!(
-               tag!("("),
-               separated_list!(tag!(","), expression),
-               tag!(")")) |
-           separated_nonempty_list!(tag!(","), expression)));
 
 named!(expression<ast::Expr>,
        delimited!(
@@ -99,24 +96,27 @@ named!(expression<ast::Expr>,
                    || ast::Expr::FunctionCall(function_call))),
            opt!(multispace)));
 
-named!(string_literal<String>,
-       map_res!(
-           map_res!(
-               delimited!(
-                   char!('"'),
-                   is_not!("\"\r\n"),
-                   char!('"')),
-               str::from_utf8),
-           FromStr::from_str));
-
-named!(comment<ast::Node>,
+named!(statement<ast::Node>,
        chain!(
-           comment: map_res!(
-               map_res!(
-                   delimited!(
-                       char!(';'),
-                       is_not!(";\r\n"),
-                       alt!(tag!("\n") | tag!("\r\n"))),
-                   str::from_utf8),
-               FromStr::from_str),
-           || ast::Node::Comment(comment)));
+           statement: function_call,
+           || ast::Node::Statement(
+               ast::Statement::FunctionCall(statement))));
+
+named!(function_call<ast::FunctionCall>,
+       chain!(
+           function_name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               arguments: argument_list,
+           || ast::FunctionCall {
+               function_name: function_name,
+               type_specifier: type_specifier,
+               arguments: arguments
+           }));
+
+named!(argument_list<ast::ArgumentList>,
+       alt!(
+           delimited!(
+               tag!("("),
+               separated_list!(tag!(","), expression),
+               tag!(")")) |
+           separated_nonempty_list!(tag!(","), expression)));
