@@ -23,7 +23,10 @@ fn compile() -> Result<(), String> {
     let file = try!(read_file(&file_name));
 
     println!("Parsing...");
-    let ast = parser::parse(&file);
+    let ast = try!(parser::parse(&file));
+
+    println!("AST:");
+    println!("{:?}", ast);
 
     Ok(())
 }
