@@ -30,7 +30,8 @@ named!(node<ast::Node>,
 named!(statement<ast::Node>,
        chain!(
            statement: function_call,
-       || ast::Node::Statement(statement)));
+           || ast::Node::Statement(
+               ast::Statement::FunctionCall(statement))));
 
 named!(include<ast::Node>,
        chain!(
@@ -44,10 +45,18 @@ named!(global_decl<ast::Node>,
            tag!("Global") ~
                multispace ~
                name: identifier ~
-               type_specifier: opt!(type_specifier),
+               type_specifier: opt!(type_specifier) ~
+               init_expr: opt!(
+                   preceded!(
+                       delimited!(
+                           opt!(multispace),
+                           tag!("="),
+                           opt!(multispace)),
+                       expression)),
            || ast::Node::GlobalDecl(ast::GlobalDecl {
                name: name,
-               type_specifier: type_specifier
+               type_specifier: type_specifier,
+               init_expr: init_expr
            })));
 
 named!(type_specifier<ast::TypeSpecifier>,
@@ -56,28 +65,36 @@ named!(type_specifier<ast::TypeSpecifier>,
            chain!(tag!("#"), || ast::TypeSpecifier::Float) |
            chain!(tag!("$"), || ast::TypeSpecifier::String)));
 
-named!(function_call<ast::Statement>,
+named!(function_call<ast::FunctionCall>,
        chain!(
            function_name: identifier ~
-               arguments: arguments,
-           || ast::Statement::FunctionCall(
-               ast::FunctionCall {
-                   function_name: function_name,
-                   arguments: arguments
-               })));
+               type_specifier: opt!(type_specifier) ~
+               arguments: argument_list,
+           || ast::FunctionCall {
+               function_name: function_name,
+               type_specifier: type_specifier,
+               arguments: arguments
+           }));
 
 named!(identifier<String>,
        map_res!(map_res!(alpha, str::from_utf8), FromStr::from_str));
 
-named!(arguments<ast::ArgumentList>,
-       separated_list!(tag!(","), expression));
+named!(argument_list<ast::ArgumentList>,
+       delimited!(
+           opt!(tag!("(")),
+           separated_list!(tag!(","), expression),
+           opt!(tag!(")"))));
 
 named!(expression<ast::Expr>,
        delimited!(
            opt!(multispace),
-           chain!(
-               string: string_literal,
-               || ast::Expr::String(string)),
+           alt!(
+               chain!(
+                   string: string_literal,
+                   || ast::Expr::String(string)) |
+               chain!(
+                   function_call: function_call,
+                   || ast::Expr::FunctionCall(function_call))),
            opt!(multispace)));
 
 named!(string_literal<String>,

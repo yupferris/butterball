@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Expr {
-    String(String)
+    String(String),
+    FunctionCall(FunctionCall)
 }
 
 pub type ArgumentList = Vec<Expr>;
@@ -8,13 +9,15 @@ pub type ArgumentList = Vec<Expr>;
 #[derive(Debug)]
 pub struct FunctionCall {
     pub function_name: String,
+    pub type_specifier: Option<TypeSpecifier>,
     pub arguments: ArgumentList
 }
 
 #[derive(Debug)]
-pub struct GlobalDecl { // TODO: Initial expr
+pub struct GlobalDecl {
     pub name: String,
-    pub type_specifier: Option<TypeSpecifier>
+    pub type_specifier: Option<TypeSpecifier>,
+    pub init_expr: Option<Expr>
 }
 
 #[derive(Debug)]
