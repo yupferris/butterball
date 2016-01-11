@@ -25,7 +25,7 @@ fn compile() -> Result<(), String> {
     println!("Parsing...");
     let ast = try!(parser::parse(&file));
 
-    println!("AST: {:?}", ast);
+    println!("AST: {:#?}", ast);
 
     Ok(())
 }

@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use super::ast;
 
-use nom::{IResult, multispace};
+use nom::{IResult, alpha, multispace};
 
 pub fn parse(source: &String) -> Result<ast::Root, String> {
     match root(source.as_bytes()) {
@@ -20,8 +20,47 @@ named!(root<ast::Root>,
 named!(node<ast::Node>,
        delimited!(
            opt!(multispace),
-           comment,
+           alt!(
+               function_call |
+               comment),
            opt!(multispace)));
+
+//named!(statement<ast::Node>, function_call);
+
+named!(function_call<ast::Node>,
+       chain!(
+           function_name: identifier ~
+               arguments: arguments,
+           || ast::Node::Statement(
+               ast::Statement::FunctionCall(
+                   ast::FunctionCall {
+                       function_name: function_name,
+                       arguments: arguments
+                   }))));
+
+named!(identifier<String>,
+       map_res!(map_res!(alpha, str::from_utf8), FromStr::from_str));
+
+named!(arguments<ast::ArgumentList>,
+       many0!(
+           delimited!(
+               opt!(multispace),
+               string_literal,
+               opt!(multispace))));
+
+//named!(expression<ast::Expr>, string_literal);
+
+named!(string_literal<ast::Expr>,
+       chain!(
+           contents: map_res!(
+               map_res!(
+                   delimited!(
+                       char!('"'),
+                       is_not!("\"\r\n"),
+                       char!('"')),
+                   str::from_utf8),
+               FromStr::from_str),
+           || ast::Expr::String(contents)));
 
 named!(comment<ast::Node>,
        chain!(
