@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["ferris <jake@fusetools.com>"]
 
 [dependencies]
-nom = "~1.0.0"
+nom = "~1.1.0"

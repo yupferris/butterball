@@ -15,7 +15,7 @@ pub enum Node {
 pub struct GlobalDecl {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>,
-    pub init_expr: Option<Expr>
+    pub init_expr: Option<Box<Expr>>
 }
 
 #[derive(Debug)]
@@ -27,8 +27,11 @@ pub enum TypeSpecifier {
 
 #[derive(Debug)]
 pub enum Expr {
-    String(String),
-    FunctionCall(FunctionCall)
+    IntegerLiteral(i32),
+    StringLiteral(String),
+    FunctionCall(FunctionCall),
+    VariableRef(VariableRef),
+    BinOp(BinOp)
 }
 
 #[derive(Debug)]
@@ -38,17 +41,35 @@ pub struct FunctionCall {
     pub arguments: ArgumentList
 }
 
-pub type ArgumentList = Vec<Expr>;
+pub type ArgumentList = Vec<Box<Expr>>;
+
+#[derive(Debug)]
+pub struct VariableRef {
+    pub name: String,
+    pub type_specifier: Option<TypeSpecifier>
+}
+
+#[derive(Debug)]
+pub struct BinOp {
+    pub op: Op,
+    pub lhs: Box<Expr>,
+    pub rhs: Box<Expr>
+}
+
+#[derive(Debug)]
+pub enum Op {
+    Equality
+}
 
 #[derive(Debug)]
 pub enum Statement {
-    FunctionCall(FunctionCall),
-    If(If)
+    If(If),
+    FunctionCall(FunctionCall)
 }
 
 #[derive(Debug)]
 pub struct If {
-    pub condition: Expr,
+    pub condition: Box<Expr>,
     pub body: StatementList,
     pub else_clause: Option<ElseClause>
 }
@@ -57,6 +78,5 @@ pub type StatementList = Vec<Statement>;
 
 #[derive(Debug)]
 pub struct ElseClause {
-    pub condition: Expr,
     pub body: StatementList
 }
