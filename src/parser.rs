@@ -16,12 +16,17 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those set (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 4] = [
+const KEYWORDS: [&'static str; 7] = [
     "Include",
+
+    "Global",
 
     "If",
     "Else",
-    "EndIf"];
+    "EndIf",
+
+    "True",
+    "False"];
 
 named!(root<ast::Root>,
        chain!(
@@ -128,6 +133,9 @@ named!(term<BoxedExpr>,
                        integer_literal: integer_literal,
                        || ast::Expr::IntegerLiteral(integer_literal)) |
                    chain!(
+                       bool_literal: bool_literal,
+                       || ast::Expr::BoolLiteral(bool_literal)) |
+                   chain!(
                        string_literal: string_literal,
                        || ast::Expr::StringLiteral(string_literal)) |
                    chain!(
@@ -145,6 +153,11 @@ named!(integer_literal<i32>,
                digit,
                str::from_utf8),
            FromStr::from_str));
+
+named!(bool_literal<bool>,
+       alt!(
+           chain!(tag!("True"), || true) |
+           chain!(tag!("False"), || false)));
 
 named!(function_call<ast::FunctionCall>,
        chain!(
@@ -188,9 +201,13 @@ named!(bin_op<ast::BinOp>,
 named!(op<ast::Op>,
        delimited!(
            opt!(multispace),
-           chain!(
-               tag!("="),
-               || ast::Op::Equality),
+           alt!(
+               chain!(
+                   tag!("="),
+                   || ast::Op::Equality) |
+               chain!(
+                   tag!("/"),
+                   || ast::Op::Div)),
            opt!(multispace)));
 
 named!(statement<ast::Statement>,

@@ -28,6 +28,7 @@ pub enum TypeSpecifier {
 #[derive(Debug)]
 pub enum Expr {
     IntegerLiteral(i32),
+    BoolLiteral(bool),
     StringLiteral(String),
     FunctionCall(FunctionCall),
     VariableRef(VariableRef),
@@ -58,7 +59,9 @@ pub struct BinOp {
 
 #[derive(Debug)]
 pub enum Op {
-    Equality
+    Equality,
+
+    Div
 }
 
 #[derive(Debug)]
