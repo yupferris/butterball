@@ -33,6 +33,7 @@ pub enum Expr {
     StringLiteral(String),
     FunctionCall(FunctionCall),
     VariableRef(VariableRef),
+    UnOp(UnOp),
     BinOp(BinOp)
 }
 
@@ -52,14 +53,25 @@ pub struct VariableRef {
 }
 
 #[derive(Debug)]
+pub struct UnOp {
+    pub op: UnOpOp,
+    pub expr: Box<Expr>
+}
+
+#[derive(Debug)]
+pub enum UnOpOp {
+    Not
+}
+
+#[derive(Debug)]
 pub struct BinOp {
-    pub op: Op,
+    pub op: BinOpOp,
     pub lhs: Box<Expr>,
     pub rhs: Box<Expr>
 }
 
 #[derive(Debug)]
-pub enum Op {
+pub enum BinOpOp {
     Equality,
 
     Add,

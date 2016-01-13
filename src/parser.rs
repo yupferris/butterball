@@ -16,7 +16,7 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those set (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 7] = [
+const KEYWORDS: [&'static str; 8] = [
     "Include",
 
     "Global",
@@ -26,7 +26,9 @@ const KEYWORDS: [&'static str; 7] = [
     "EndIf",
 
     "True",
-    "False"];
+    "False",
+
+    "Not"];
 
 named!(root<ast::Root>,
        chain!(
@@ -120,6 +122,9 @@ type BoxedExpr = Box<ast::Expr>; // This was kindof a hack
 named!(expression<BoxedExpr>,
        alt!(
            chain!(
+               un_op: complete!(un_op),
+               || Box::new(ast::Expr::UnOp(un_op))) |
+           chain!(
                bin_op: complete!(bin_op),
                || Box::new(ast::Expr::BinOp(bin_op))) |
            complete!(term)));
@@ -143,7 +148,8 @@ named!(term<BoxedExpr>,
                        || ast::Expr::StringLiteral(string_literal)) |
                    chain!(
                        function_call_expr: function_call_expr,
-                       || ast::Expr::FunctionCall(function_call_expr)) |
+                       || ast::Expr::FunctionCall(
+                           function_call_expr)) |
                    chain!(
                        variable_ref: variable_ref,
                        || ast::Expr::VariableRef(variable_ref))),
@@ -203,10 +209,25 @@ named!(variable_ref<ast::VariableRef>,
                type_specifier: type_specifier
            }));
 
+named!(un_op<ast::UnOp>,
+       chain!(
+           op: un_op_op ~
+               expr: term,
+           || ast::UnOp {
+               op: op,
+               expr: expr
+           }));
+
+named!(un_op_op<ast::UnOpOp>,
+       delimited!(
+           opt!(space),
+           chain!(tag!("Not"), || ast::UnOpOp::Not),
+           opt!(space)));
+
 named!(bin_op<ast::BinOp>,
        chain!(
            lhs: term ~
-               op: op ~
+               op: bin_op_op ~
                rhs: term,
            || ast::BinOp {
                op: op,
@@ -214,14 +235,15 @@ named!(bin_op<ast::BinOp>,
                rhs: rhs
            }));
 
-named!(op<ast::Op>,
+named!(bin_op_op<ast::BinOpOp>,
        delimited!(
            opt!(space),
            alt!(
-               chain!(tag!("="), || ast::Op::Equality) |
-               chain!(tag!("+"), || ast::Op::Add) |
-               chain!(tag!("*"), || ast::Op::Mul) |
-               chain!(tag!("/"), || ast::Op::Div)),
+               chain!(tag!("="), || ast::BinOpOp::Equality) |
+
+               chain!(tag!("+"), || ast::BinOpOp::Add) |
+               chain!(tag!("*"), || ast::BinOpOp::Mul) |
+               chain!(tag!("/"), || ast::BinOpOp::Div)),
            opt!(space)));
 
 named!(statement<ast::Statement>,
