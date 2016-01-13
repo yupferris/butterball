@@ -206,6 +206,9 @@ named!(op<ast::Op>,
                    tag!("="),
                    || ast::Op::Equality) |
                chain!(
+                   tag!("+"),
+                   || ast::Op::Add) |
+               chain!(
                    tag!("/"),
                    || ast::Op::Div)),
            opt!(space)));
@@ -217,7 +220,11 @@ named!(statement<ast::Statement>,
                || ast::Statement::If(if_statement)) |
            chain!(
                statement: function_call,
-               || ast::Statement::FunctionCall(statement))));
+               || ast::Statement::FunctionCall(statement)) |
+           chain!(
+               variable_assignment: variable_assignment,
+               || ast::Statement::VariableAssignment(
+                   variable_assignment))));
 
 named!(if_statement<ast::If>,
        chain!(
@@ -245,4 +252,22 @@ named!(else_clause<ast::ElseClause>,
                body: statement_list,
            || ast::ElseClause {
                body: body
+           }));
+
+named!(variable_assignment<ast::VariableAssignment>,
+       chain!(
+           variable_name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               expr: preceded!(
+                   delimited!(
+                       opt!(space),
+                       tag!("="),
+                       opt!(space)),
+                   expression),
+           || ast::VariableAssignment {
+               variable: ast::VariableRef {
+                   name: variable_name,
+                   type_specifier: type_specifier
+               },
+               expr: expr
            }));

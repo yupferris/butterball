@@ -61,13 +61,15 @@ pub struct BinOp {
 pub enum Op {
     Equality,
 
+    Add,
     Div
 }
 
 #[derive(Debug)]
 pub enum Statement {
     If(If),
-    FunctionCall(FunctionCall)
+    FunctionCall(FunctionCall),
+    VariableAssignment(VariableAssignment)
 }
 
 #[derive(Debug)]
@@ -82,4 +84,10 @@ pub type StatementList = Vec<Statement>;
 #[derive(Debug)]
 pub struct ElseClause {
     pub body: StatementList
+}
+
+#[derive(Debug)]
+pub struct VariableAssignment {
+    pub variable: VariableRef,
+    pub expr: Box<Expr>
 }
