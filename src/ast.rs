@@ -82,6 +82,7 @@ pub enum BinOpOp {
 #[derive(Debug)]
 pub enum Statement {
     If(If),
+    While(While),
     VariableAssignment(VariableAssignment),
     FunctionCall(FunctionCall)
 }
@@ -97,6 +98,12 @@ pub type StatementList = Vec<Statement>;
 
 #[derive(Debug)]
 pub struct ElseClause {
+    pub body: StatementList
+}
+
+#[derive(Debug)]
+pub struct While {
+    pub condition: Box<Expr>,
     pub body: StatementList
 }
 
