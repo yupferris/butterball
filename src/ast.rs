@@ -28,6 +28,7 @@ pub enum TypeSpecifier {
 #[derive(Debug)]
 pub enum Expr {
     IntegerLiteral(i32),
+    FloatLiteral(f32),
     BoolLiteral(bool),
     StringLiteral(String),
     FunctionCall(FunctionCall),
@@ -62,6 +63,7 @@ pub enum Op {
     Equality,
 
     Add,
+    Mul,
     Div
 }
 

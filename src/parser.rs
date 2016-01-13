@@ -133,6 +133,9 @@ named!(term<BoxedExpr>,
                        integer_literal: integer_literal,
                        || ast::Expr::IntegerLiteral(integer_literal)) |
                    chain!(
+                       float_literal: float_literal,
+                       || ast::Expr::FloatLiteral(float_literal)) |
+                   chain!(
                        bool_literal: bool_literal,
                        || ast::Expr::BoolLiteral(bool_literal)) |
                    chain!(
@@ -151,6 +154,24 @@ named!(integer_literal<i32>,
        map_res!(
            map_res!(
                recognize!(preceded!(opt!(tag!("-")), digit)),
+               str::from_utf8),
+           FromStr::from_str));
+
+named!(float_literal<f32>,
+       map_res!(
+           map_res!(
+               recognize!(
+                   alt!(
+                       chain!(
+                           integer_literal ~
+                               tag!(".") ~
+                               opt!(integer_literal),
+                           || ()) |
+                       chain!(
+                           opt!(integer_literal) ~
+                               tag!(".") ~
+                               integer_literal,
+                           || ()))),
                str::from_utf8),
            FromStr::from_str));
 
@@ -202,15 +223,10 @@ named!(op<ast::Op>,
        delimited!(
            opt!(space),
            alt!(
-               chain!(
-                   tag!("="),
-                   || ast::Op::Equality) |
-               chain!(
-                   tag!("+"),
-                   || ast::Op::Add) |
-               chain!(
-                   tag!("/"),
-                   || ast::Op::Div)),
+               chain!(tag!("="), || ast::Op::Equality) |
+               chain!(tag!("+"), || ast::Op::Add) |
+               chain!(tag!("*"), || ast::Op::Mul) |
+               chain!(tag!("/"), || ast::Op::Div)),
            opt!(space)));
 
 named!(statement<ast::Statement>,
