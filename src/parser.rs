@@ -150,7 +150,7 @@ named!(term<BoxedExpr>,
 named!(integer_literal<i32>,
        map_res!(
            map_res!(
-               digit,
+               recognize!(preceded!(opt!(tag!("-")), digit)),
                str::from_utf8),
            FromStr::from_str));
 
