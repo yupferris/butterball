@@ -16,7 +16,7 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those set (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 10] = [
+const KEYWORDS: [&'static str; 11] = [
     "Include",
 
     "Global",
@@ -24,6 +24,7 @@ const KEYWORDS: [&'static str; 10] = [
     "If",
     "Else",
     "EndIf",
+    "Then",
 
     "While",
     "Wend",
@@ -270,7 +271,13 @@ named!(if_statement<ast::If>,
            tag!("If") ~
                space ~
                condition: expression ~
-               body: statement_list ~
+               body: alt!(
+                   statement_list |
+                   chain!(
+                       tag!("Then") ~
+                           space ~
+                           statement: statement,
+                       || vec![statement])) ~
                opt!(multispace) ~
            else_clause: opt!(else_clause) ~
                opt!(multispace) ~
