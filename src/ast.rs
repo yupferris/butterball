@@ -70,8 +70,8 @@ pub enum Op {
 #[derive(Debug)]
 pub enum Statement {
     If(If),
-    FunctionCall(FunctionCall),
-    VariableAssignment(VariableAssignment)
+    VariableAssignment(VariableAssignment),
+    FunctionCall(FunctionCall)
 }
 
 #[derive(Debug)]

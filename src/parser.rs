@@ -142,8 +142,8 @@ named!(term<BoxedExpr>,
                        string_literal: string_literal,
                        || ast::Expr::StringLiteral(string_literal)) |
                    chain!(
-                       function_call: function_call,
-                       || ast::Expr::FunctionCall(function_call)) |
+                       function_call_expr: function_call_expr,
+                       || ast::Expr::FunctionCall(function_call_expr)) |
                    chain!(
                        variable_ref: variable_ref,
                        || ast::Expr::VariableRef(variable_ref))),
@@ -180,24 +180,19 @@ named!(bool_literal<bool>,
            chain!(tag!("True"), || true) |
            chain!(tag!("False"), || false)));
 
-named!(function_call<ast::FunctionCall>,
+named!(function_call_expr<ast::FunctionCall>,
        chain!(
            function_name: identifier ~
                type_specifier: opt!(type_specifier) ~
-               arguments: argument_list,
+               arguments: delimited!(
+                   tag!("("),
+                   separated_list!(tag!(","), expression),
+                   tag!(")")),
            || ast::FunctionCall {
                function_name: function_name,
                type_specifier: type_specifier,
                arguments: arguments
            }));
-
-named!(argument_list<ast::ArgumentList>,
-       alt!(
-           delimited!(
-               tag!("("),
-               separated_list!(tag!(","), expression),
-               tag!(")")) |
-           separated_nonempty_list!(tag!(","), expression)));
 
 named!(variable_ref<ast::VariableRef>,
        chain!(
@@ -235,12 +230,12 @@ named!(statement<ast::Statement>,
                if_statement: if_statement,
                || ast::Statement::If(if_statement)) |
            chain!(
-               statement: function_call,
-               || ast::Statement::FunctionCall(statement)) |
-           chain!(
                variable_assignment: variable_assignment,
                || ast::Statement::VariableAssignment(
-                   variable_assignment))));
+                   variable_assignment)) |
+           chain!(
+               function_call: function_call_statement,
+               || ast::Statement::FunctionCall(function_call))));
 
 named!(if_statement<ast::If>,
        chain!(
@@ -286,4 +281,22 @@ named!(variable_assignment<ast::VariableAssignment>,
                    type_specifier: type_specifier
                },
                expr: expr
+           }));
+
+named!(function_call_statement<ast::FunctionCall>,
+       chain!(
+           function_name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               arguments: opt!(
+                   alt!(
+                       delimited!(
+                           tag!("("),
+                           separated_list!(tag!(","), expression),
+                           tag!(")")) |
+                       separated_nonempty_list!(
+                           tag!(","), expression))),
+           || ast::FunctionCall {
+               function_name: function_name,
+               type_specifier: type_specifier,
+               arguments: arguments.unwrap_or(Vec::new())
            }));
