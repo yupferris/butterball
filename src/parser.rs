@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use super::ast;
 
-use nom::{IResult, alpha, alphanumeric, digit, multispace};
+use nom::{IResult, alpha, alphanumeric, digit, space, multispace};
 
 pub fn parse(source: &String) -> Result<ast::Root, String> {
     match root(source.as_bytes()) {
@@ -60,7 +60,7 @@ named!(comment<ast::Node>,
 named!(include<ast::Node>,
        chain!(
            tag!("Include") ~
-               multispace ~
+               space ~
                expr: string_literal,
            || ast::Node::Include(expr)));
 
@@ -77,15 +77,15 @@ named!(string_literal<String>,
 named!(global_decl<ast::Node>,
        chain!(
            tag!("Global") ~
-               multispace ~
+               space ~
                name: identifier ~
                type_specifier: opt!(type_specifier) ~
                init_expr: opt!(
                    preceded!(
                        delimited!(
-                           opt!(multispace),
+                           opt!(space),
                            tag!("="),
-                           opt!(multispace)),
+                           opt!(space)),
                        expression)),
            || ast::Node::GlobalDecl(ast::GlobalDecl {
                name: name,
@@ -126,7 +126,7 @@ named!(expression<BoxedExpr>,
 
 named!(term<BoxedExpr>,
        delimited!(
-           opt!(multispace),
+           opt!(space),
            chain!(
                term: alt!(
                    chain!(
@@ -145,7 +145,7 @@ named!(term<BoxedExpr>,
                        variable_ref: variable_ref,
                        || ast::Expr::VariableRef(variable_ref))),
                || Box::new(term)),
-           opt!(multispace)));
+           opt!(space)));
 
 named!(integer_literal<i32>,
        map_res!(
@@ -200,7 +200,7 @@ named!(bin_op<ast::BinOp>,
 
 named!(op<ast::Op>,
        delimited!(
-           opt!(multispace),
+           opt!(space),
            alt!(
                chain!(
                    tag!("="),
@@ -208,7 +208,7 @@ named!(op<ast::Op>,
                chain!(
                    tag!("/"),
                    || ast::Op::Div)),
-           opt!(multispace)));
+           opt!(space)));
 
 named!(statement<ast::Statement>,
        alt!(
@@ -222,9 +222,9 @@ named!(statement<ast::Statement>,
 named!(if_statement<ast::If>,
        chain!(
            tag!("If") ~
-               multispace ~
+               space ~
                condition: expression ~
-               body: many0!(statement) ~
+               body: statement_list ~
                opt!(multispace) ~
            else_clause: opt!(else_clause) ~
                opt!(multispace) ~
@@ -235,11 +235,14 @@ named!(if_statement<ast::If>,
                else_clause: else_clause
            }));
 
+named!(statement_list<ast::StatementList>,
+       many0!(preceded!(opt!(multispace), statement)));
+
 named!(else_clause<ast::ElseClause>,
        chain!(
            tag!("Else") ~
                multispace ~
-               body: many0!(statement),
+               body: statement_list,
            || ast::ElseClause {
                body: body
            }));
