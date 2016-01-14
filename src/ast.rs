@@ -5,7 +5,6 @@ pub struct Root {
 
 #[derive(Debug)]
 pub enum Node {
-    Comment(String),
     Include(String),
     GlobalDecl(GlobalDecl),
     Statement(Statement)
@@ -73,6 +72,11 @@ pub struct BinOp {
 #[derive(Debug)]
 pub enum BinOpOp {
     Equality,
+
+    And,
+
+    Lt,
+    Gt,
 
     Add,
     Mul,

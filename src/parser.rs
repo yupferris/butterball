@@ -13,10 +13,10 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 }
 
 // TODO: Should really be a HashSet, but Rust doesn't have
-// a quick initializer for those set (see
+// a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 11] = [
+const KEYWORDS: [&'static str; 12] = [
     "Include",
 
     "Global",
@@ -32,6 +32,7 @@ const KEYWORDS: [&'static str; 11] = [
     "True",
     "False",
 
+    "And",
     "Not"];
 
 named!(root<ast::Root>,
@@ -41,27 +42,25 @@ named!(root<ast::Root>,
 
 named!(node<ast::Node>,
        delimited!(
-           opt!(multispace),
+           opt!(whitespace),
            alt!(
-               comment |
                include |
                global_decl |
                chain!(
                    statement: statement,
                    || ast::Node::Statement(statement))),
-           opt!(multispace)));
+           opt!(whitespace)));
 
-named!(comment<ast::Node>,
-       chain!(
-           comment: map_res!(
-               map_res!(
-                   delimited!(
-                       char!(';'),
-                       is_not!(";\r\n"),
-                       alt!(tag!("\n") | tag!("\r\n"))),
-                   str::from_utf8),
-               FromStr::from_str),
-           || ast::Node::Comment(comment)));
+// Some more 1337 h4xx0rzzzz :P
+named!(whitespace<&[u8]>,
+       recognize!(many1!(alt!(multispace | comment))));
+
+named!(comment<&[u8]>,
+       recognize!(
+           delimited!(
+               char!(';'),
+               is_not!(";\r\n"),
+               alt!(tag!("\n") | tag!("\r\n")))));
 
 named!(include<ast::Node>,
        chain!(
@@ -245,6 +244,11 @@ named!(bin_op_op<ast::BinOpOp>,
            alt!(
                chain!(tag!("="), || ast::BinOpOp::Equality) |
 
+               chain!(tag!("And"), || ast::BinOpOp::And) |
+
+               chain!(tag!("<"), || ast::BinOpOp::Lt) |
+               chain!(tag!(">"), || ast::BinOpOp::Gt) |
+
                chain!(tag!("+"), || ast::BinOpOp::Add) |
                chain!(tag!("*"), || ast::BinOpOp::Mul) |
                chain!(tag!("/"), || ast::BinOpOp::Div)),
@@ -270,31 +274,40 @@ named!(if_statement<ast::If>,
        chain!(
            tag!("If") ~
                space ~
-               condition: expression ~
-               body: alt!(
-                   statement_list |
+               ret: alt!(
                    chain!(
-                       tag!("Then") ~
+                       condition: expression ~
+                       body: statement_list ~
+                           opt!(whitespace) ~
+                       else_clause: opt!(else_clause) ~
+                           opt!(whitespace) ~
+                           tag!("EndIf"),
+                       || ast::If {
+                           condition: condition,
+                           body: body,
+                           else_clause: else_clause
+                       }) |
+                   chain!(
+                       condition: expression ~
+                           tag!("Then") ~
                            space ~
-                           statement: statement,
-                       || vec![statement])) ~
-               opt!(multispace) ~
-           else_clause: opt!(else_clause) ~
-               opt!(multispace) ~
-               tag!("EndIf"),
-           || ast::If {
-               condition: condition,
-               body: body,
-               else_clause: else_clause
-           }));
+                           body: separated_nonempty_list!(
+                               preceded!(opt!(space), tag!(":")),
+                               statement),
+                       || ast::If {
+                           condition: condition,
+                           body: body,
+                           else_clause: None
+                       })),
+       || ret));
 
 named!(statement_list<ast::StatementList>,
-       many0!(preceded!(opt!(multispace), statement)));
+       many0!(preceded!(opt!(whitespace), statement)));
 
 named!(else_clause<ast::ElseClause>,
        chain!(
            tag!("Else") ~
-               multispace ~
+               whitespace ~
                body: statement_list,
            || ast::ElseClause {
                body: body
@@ -306,7 +319,7 @@ named!(while_statement<ast::While>,
                space ~
                condition: expression ~
                body: statement_list ~
-               opt!(multispace) ~
+               opt!(whitespace) ~
                tag!("Wend"),
            || ast::While {
                condition: condition,
