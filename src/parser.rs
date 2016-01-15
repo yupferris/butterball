@@ -91,7 +91,7 @@ named!(global_decl<ast::Node>,
                            opt!(space),
                            tag!("="),
                            opt!(space)),
-                       expression)),
+                       expr)),
            || ast::Node::GlobalDecl(ast::GlobalDecl {
                name: name,
                type_specifier: type_specifier,
@@ -122,21 +122,65 @@ named!(type_specifier<ast::TypeSpecifier>,
 
 type BoxedExpr = Box<ast::Expr>; // This was kindof a hack
 
-named!(expression<BoxedExpr>,
-       alt!(
-           chain!(
-               un_op: complete!(un_op),
-               || Box::new(ast::Expr::UnOp(un_op))) |
-           chain!(
-               bin_op: complete!(bin_op),
-               || Box::new(ast::Expr::BinOp(bin_op))) |
-           complete!(term)));
+// TODO: Complete based off of https://github.com/Leushenko/Taranis/blob/master/BlitzBasic%20grammar.txt
+named!(expr<BoxedExpr>,
+       chain!(
+           ops: many0!(
+               chain!(
+                   delimited!(
+                       opt!(space),
+                       tag!("Not"),
+                       opt!(space)),
+                   || ast::Op::Not)) ~
+               expr: bitwise_expr,
+           || reduce_un_op_expr(&ops, &expr, 0)));
 
-named!(term<BoxedExpr>,
+named!(bitwise_expr<BoxedExpr>,
+       chain!(
+           lhs: comp_expr ~
+               rhss: many0!(
+                   pair!(bitwise_op, comp_expr)),
+           || reduce_bin_op_expr(&lhs, &rhss, 0)));
+
+named!(comp_expr<BoxedExpr>,
+       chain!(
+           lhs: sum_expr ~
+               rhss: many0!(
+                   pair!(comp_op, sum_expr)),
+           || reduce_bin_op_expr(&lhs, &rhss, 0)));
+
+named!(sum_expr<BoxedExpr>,
+       chain!(
+           lhs: shift_expr ~
+               rhss: many0!(
+                   pair!(sum_op, shift_expr)),
+           || reduce_bin_op_expr(&lhs, &rhss, 0)));
+
+named!(shift_expr<BoxedExpr>,
+       chain!(
+           lhs: mul_expr ~
+               rhss: many0!(
+                   pair!(shift_op, mul_expr)),
+           || reduce_bin_op_expr(&lhs, &rhss, 0)));
+
+named!(mul_expr<BoxedExpr>,
+       chain!(
+           lhs: unary_expr ~
+               rhss: many0!(
+                   pair!(mul_op, unary_expr)),
+           || reduce_bin_op_expr(&lhs, &rhss, 0)));
+
+named!(unary_expr<BoxedExpr>,
+       chain!(
+           ops: many0!(unary_op) ~
+               expr: atomic_value,
+           || reduce_un_op_expr(&ops, &expr, 0)));
+
+named!(atomic_value<BoxedExpr>,
        delimited!(
            opt!(space),
            chain!(
-               term: alt!(
+               ret: alt!(
                    chain!(
                        integer_literal: integer_literal,
                        || ast::Expr::IntegerLiteral(integer_literal)) |
@@ -156,8 +200,89 @@ named!(term<BoxedExpr>,
                    chain!(
                        variable_ref: variable_ref,
                        || ast::Expr::VariableRef(variable_ref))),
-               || Box::new(term)),
+               || Box::new(ret)),
            opt!(space)));
+
+named!(comp_op<ast::Op>,
+       delimited!(
+           opt!(space),
+           alt!(
+               chain!(tag!("="), || ast::Op::Eq) |
+               chain!(tag!("<"), || ast::Op::Lt) |
+               chain!(tag!(">"), || ast::Op::Gt)),
+           opt!(space)));
+
+named!(sum_op<ast::Op>,
+       delimited!(
+           opt!(space),
+           alt!(
+               chain!(tag!("+"), || ast::Op::Add) |
+               chain!(tag!("-"), || ast::Op::Sub)),
+           opt!(space)));
+
+named!(shift_op<ast::Op>,
+       delimited!(
+           opt!(space),
+           alt!(
+               chain!(tag!("Shl"), || ast::Op::Shl) |
+               chain!(tag!("Shr"), || ast::Op::Shr) |
+               chain!(tag!("Sar"), || ast::Op::Sar)),
+           opt!(space)));
+
+named!(mul_op<ast::Op>,
+       delimited!(
+           opt!(space),
+           alt!(
+               chain!(tag!("*"), || ast::Op::Mul) |
+               chain!(tag!("/"), || ast::Op::Div)),
+           opt!(space)));
+
+named!(bitwise_op<ast::Op>,
+       delimited!(
+           opt!(space),
+           alt!(
+               chain!(tag!("And"), || ast::Op::And) |
+               chain!(tag!("Or"), || ast::Op::Or) |
+               chain!(tag!("Xor"), || ast::Op::Xor)),
+           opt!(space)));
+
+named!(unary_op<ast::Op>,
+       delimited!(
+           opt!(space),
+           chain!(tag!("-"), || ast::Op::Neg),
+           opt!(space)));
+
+// TODO: Better name?
+fn reduce_un_op_expr(
+    ops: &Vec<ast::Op>,
+    expr: &BoxedExpr,
+    index: usize) -> BoxedExpr {
+    if index == ops.len() {
+        expr.clone()
+    } else {
+        Box::new(ast::Expr::UnOp(ast::UnOp {
+            op: ops[index].clone(),
+            expr: reduce_un_op_expr(ops, expr, index + 1)
+        }))
+    }
+}
+
+// TODO: Better name?
+fn reduce_bin_op_expr(
+    lhs: &BoxedExpr,
+    rhss: &Vec<(ast::Op, BoxedExpr)>,
+    index: usize) -> BoxedExpr {
+    if index == rhss.len() {
+        lhs.clone()
+    } else {
+        let (ref op, ref rhs) = rhss[index];
+        Box::new(ast::Expr::BinOp(ast::BinOp {
+            op: op.clone(),
+            lhs: lhs.clone(),
+            rhs: reduce_bin_op_expr(&rhs, rhss, index + 1)
+        }))
+    }
+}
 
 named!(integer_literal<i32>,
        map_res!(
@@ -195,7 +320,7 @@ named!(function_call_expr<ast::FunctionCall>,
                type_specifier: opt!(type_specifier) ~
                arguments: delimited!(
                    tag!("("),
-                   separated_list!(tag!(","), expression),
+                   separated_list!(tag!(","), expr),
                    tag!(")")),
            || ast::FunctionCall {
                function_name: function_name,
@@ -212,47 +337,21 @@ named!(variable_ref<ast::VariableRef>,
                type_specifier: type_specifier
            }));
 
-named!(un_op<ast::UnOp>,
-       chain!(
-           op: un_op_op ~
-               expr: term,
-           || ast::UnOp {
-               op: op,
-               expr: expr
-           }));
-
-named!(un_op_op<ast::UnOpOp>,
-       delimited!(
-           opt!(space),
-           chain!(tag!("Not"), || ast::UnOpOp::Not),
-           opt!(space)));
-
-named!(bin_op<ast::BinOp>,
-       chain!(
-           lhs: term ~
-               op: bin_op_op ~
-               rhs: term,
-           || ast::BinOp {
-               op: op,
-               lhs: lhs,
-               rhs: rhs
-           }));
-
-named!(bin_op_op<ast::BinOpOp>,
+/*named!(bin_op_op<ast::Op>,
        delimited!(
            opt!(space),
            alt!(
-               chain!(tag!("="), || ast::BinOpOp::Equality) |
+               chain!(tag!("="), || ast::Op::Equality) |
 
-               chain!(tag!("And"), || ast::BinOpOp::And) |
+               chain!(tag!("And"), || ast::Op::And) |
 
-               chain!(tag!("<"), || ast::BinOpOp::Lt) |
-               chain!(tag!(">"), || ast::BinOpOp::Gt) |
+               chain!(tag!("<"), || ast::Op::Lt) |
+               chain!(tag!(">"), || ast::Op::Gt) |
 
-               chain!(tag!("+"), || ast::BinOpOp::Add) |
-               chain!(tag!("*"), || ast::BinOpOp::Mul) |
-               chain!(tag!("/"), || ast::BinOpOp::Div)),
-           opt!(space)));
+               chain!(tag!("+"), || ast::Op::Add) |
+               chain!(tag!("*"), || ast::Op::Mul) |
+               chain!(tag!("/"), || ast::Op::Div)),
+           opt!(space)));*/
 
 named!(statement<ast::Statement>,
        alt!(
@@ -276,7 +375,7 @@ named!(if_statement<ast::If>,
                space ~
                ret: alt!(
                    chain!(
-                       condition: expression ~
+                       condition: expr ~
                        body: statement_list ~
                            opt!(whitespace) ~
                        else_clause: opt!(else_clause) ~
@@ -288,7 +387,7 @@ named!(if_statement<ast::If>,
                            else_clause: else_clause
                        }) |
                    chain!(
-                       condition: expression ~
+                       condition: expr ~
                            tag!("Then") ~
                            space ~
                            body: separated_nonempty_list!(
@@ -317,7 +416,7 @@ named!(while_statement<ast::While>,
        chain!(
            tag!("While") ~
                space ~
-               condition: expression ~
+               condition: expr ~
                body: statement_list ~
                opt!(whitespace) ~
                tag!("Wend"),
@@ -335,7 +434,7 @@ named!(variable_assignment<ast::VariableAssignment>,
                        opt!(space),
                        tag!("="),
                        opt!(space)),
-                   expression),
+                   expr),
            || ast::VariableAssignment {
                variable: ast::VariableRef {
                    name: variable_name,
@@ -352,10 +451,10 @@ named!(function_call_statement<ast::FunctionCall>,
                    alt!(
                        delimited!(
                            tag!("("),
-                           separated_list!(tag!(","), expression),
+                           separated_list!(tag!(","), expr),
                            tag!(")")) |
                        separated_nonempty_list!(
-                           tag!(","), expression))),
+                           tag!(","), expr))),
            || ast::FunctionCall {
                function_name: function_name,
                type_specifier: type_specifier,

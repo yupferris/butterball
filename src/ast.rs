@@ -17,14 +17,14 @@ pub struct GlobalDecl {
     pub init_expr: Option<Box<Expr>>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TypeSpecifier {
     Int,
     Float,
     String
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     IntegerLiteral(i32),
     FloatLiteral(f32),
@@ -36,7 +36,7 @@ pub enum Expr {
     BinOp(BinOp)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionCall {
     pub function_name: String,
     pub type_specifier: Option<TypeSpecifier>,
@@ -45,42 +45,49 @@ pub struct FunctionCall {
 
 pub type ArgumentList = Vec<Box<Expr>>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VariableRef {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnOp {
-    pub op: UnOpOp,
+    pub op: Op,
     pub expr: Box<Expr>
 }
 
-#[derive(Debug)]
-pub enum UnOpOp {
-    Not
-}
+#[derive(Debug, Clone)]
+pub enum Op {
+    Not,
 
-#[derive(Debug)]
-pub struct BinOp {
-    pub op: BinOpOp,
-    pub lhs: Box<Expr>,
-    pub rhs: Box<Expr>
-}
-
-#[derive(Debug)]
-pub enum BinOpOp {
-    Equality,
+    Eq,
 
     And,
+    Or,
+    Xor,
 
     Lt,
     Gt,
 
     Add,
+    Sub,
+
     Mul,
-    Div
+    Div,
+
+    Shl,
+    Shr,
+    Sar,
+
+    Neg
+}
+
+#[derive(Debug, Clone)]
+pub struct BinOp {
+    pub op: Op,
+    pub lhs: Box<Expr>,
+    pub rhs: Box<Expr>
 }
 
 #[derive(Debug)]
