@@ -72,6 +72,7 @@ pub enum Op {
     Not,
 
     Eq,
+    Neq,
 
     And,
     Or,
