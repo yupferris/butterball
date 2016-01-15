@@ -468,8 +468,7 @@ named!(for_statement<ast::For>,
                initialization: variable_assignment ~
                tag!("To") ~
                space ~
-               // TODO: Probably too permissive
-               to: atomic_value ~
+               to: expr ~
                step: opt!(
                    chain!(
                        tag!("Step") ~
