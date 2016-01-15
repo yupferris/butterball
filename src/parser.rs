@@ -16,10 +16,12 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 12] = [
+const KEYWORDS: [&'static str; 15] = [
     "Include",
 
     "Global",
+
+    "End",
 
     "If",
     "Else",
@@ -28,6 +30,9 @@ const KEYWORDS: [&'static str; 12] = [
 
     "While",
     "Wend",
+
+    "Select",
+    "Case",
 
     "True",
     "False",
@@ -337,22 +342,6 @@ named!(variable_ref<ast::VariableRef>,
                type_specifier: type_specifier
            }));
 
-/*named!(bin_op_op<ast::Op>,
-       delimited!(
-           opt!(space),
-           alt!(
-               chain!(tag!("="), || ast::Op::Equality) |
-
-               chain!(tag!("And"), || ast::Op::And) |
-
-               chain!(tag!("<"), || ast::Op::Lt) |
-               chain!(tag!(">"), || ast::Op::Gt) |
-
-               chain!(tag!("+"), || ast::Op::Add) |
-               chain!(tag!("*"), || ast::Op::Mul) |
-               chain!(tag!("/"), || ast::Op::Div)),
-           opt!(space)));*/
-
 named!(statement<ast::Statement>,
        alt!(
            chain!(
@@ -361,6 +350,9 @@ named!(statement<ast::Statement>,
            chain!(
                while_statement: while_statement,
                || ast::Statement::While(while_statement)) |
+           chain!(
+               select: select,
+               || ast::Statement::Select(select)) |
            chain!(
                variable_assignment: variable_assignment,
                || ast::Statement::VariableAssignment(
@@ -422,6 +414,33 @@ named!(while_statement<ast::While>,
                tag!("Wend"),
            || ast::While {
                condition: condition,
+               body: body
+           }));
+
+named!(select<ast::Select>,
+       chain!(
+           tag!("Select") ~
+               space ~
+               expr: expr ~
+               arms: many0!(preceded!(opt!(whitespace), case_arm)) ~
+               opt!(whitespace) ~
+               tag!("End") ~
+               space ~
+               tag!("Select"),
+           || ast::Select {
+               expr: expr,
+               arms: arms
+           }));
+
+named!(case_arm<ast::CaseArm>,
+       chain!(
+           tag!("Case") ~
+               space ~
+               // TODO: Probably too permissive
+               value: atomic_value ~
+               body: statement_list,
+           || ast::CaseArm {
+               value: value,
                body: body
            }));
 

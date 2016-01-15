@@ -94,6 +94,7 @@ pub struct BinOp {
 pub enum Statement {
     If(If),
     While(While),
+    Select(Select),
     VariableAssignment(VariableAssignment),
     FunctionCall(FunctionCall)
 }
@@ -115,6 +116,18 @@ pub struct ElseClause {
 #[derive(Debug)]
 pub struct While {
     pub condition: Box<Expr>,
+    pub body: StatementList
+}
+
+#[derive(Debug)]
+pub struct Select {
+    pub expr: Box<Expr>,
+    pub arms: Vec<CaseArm>
+}
+
+#[derive(Debug)]
+pub struct CaseArm {
+    pub value: Box<Expr>,
     pub body: StatementList
 }
 
