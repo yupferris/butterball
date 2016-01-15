@@ -91,7 +91,7 @@ named!(string_literal<String>,
            map_res!(
                delimited!(
                    char!('"'),
-                   is_not!("\"\r\n"),
+                   recognize!(opt!(is_not!("\"\r\n"))),
                    char!('"')),
                str::from_utf8),
            FromStr::from_str));
