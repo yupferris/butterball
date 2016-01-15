@@ -16,7 +16,7 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 19] = [
+const KEYWORDS: [&'static str; 21] = [
     "Include",
 
     "Global",
@@ -32,6 +32,9 @@ const KEYWORDS: [&'static str; 19] = [
 
     "While",
     "Wend",
+
+    "Repeat",
+    "Forever",
 
     "For",
     "Next",
@@ -392,6 +395,9 @@ named!(statement<ast::Statement>,
                while_statement: while_statement,
                || ast::Statement::While(while_statement)) |
            chain!(
+               repeat: repeat,
+               || ast::Statement::Repeat(repeat)) |
+           chain!(
                for_statement: for_statement,
                || ast::Statement::For(for_statement)) |
            chain!(
@@ -458,6 +464,16 @@ named!(while_statement<ast::While>,
                tag!("Wend"),
            || ast::While {
                condition: condition,
+               body: body
+           }));
+
+named!(repeat<ast::Repeat>,
+       chain!(
+           tag!("Repeat") ~
+               body: statement_list ~
+               opt!(whitespace) ~
+               tag!("Forever"),
+           || ast::Repeat {
                body: body
            }));
 

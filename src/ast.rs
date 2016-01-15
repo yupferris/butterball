@@ -106,6 +106,7 @@ pub struct BinOp {
 pub enum Statement {
     If(If),
     While(While),
+    Repeat(Repeat),
     For(For),
     Select(Select),
     VariableAssignment(VariableAssignment),
@@ -129,6 +130,11 @@ pub struct ElseClause {
 #[derive(Debug)]
 pub struct While {
     pub condition: Box<Expr>,
+    pub body: StatementList
+}
+
+#[derive(Debug)]
+pub struct Repeat {
     pub body: StatementList
 }
 
