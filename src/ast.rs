@@ -94,7 +94,7 @@ pub struct BinOp {
 pub enum Statement {
     If(If),
     While(While),
-    //For(For),
+    For(For),
     Select(Select),
     VariableAssignment(VariableAssignment),
     FunctionCall(FunctionCall)
@@ -120,14 +120,19 @@ pub struct While {
     pub body: StatementList
 }
 
-/*#[derive(Debug)]
+#[derive(Debug)]
 pub struct For {
-    pub variable_name: String,
-    pub variable_type_specifier: Option<TypeSpecifier>,
-    pub from: Box<Expr>,
+    pub initialization: VariableAssignment,
     pub to: Box<Expr>,
-    pub step: Option<Box<Expr>>
-}*/
+    pub step: Option<Box<Expr>>,
+    pub body: StatementList
+}
+
+#[derive(Debug)]
+pub struct VariableAssignment {
+    pub variable: VariableRef,
+    pub expr: Box<Expr>
+}
 
 #[derive(Debug)]
 pub struct Select {
@@ -139,10 +144,4 @@ pub struct Select {
 pub struct CaseArm {
     pub value: Box<Expr>,
     pub body: StatementList
-}
-
-#[derive(Debug)]
-pub struct VariableAssignment {
-    pub variable: VariableRef,
-    pub expr: Box<Expr>
 }
