@@ -16,8 +16,11 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 21] = [
+const KEYWORDS: [&'static str; 23] = [
     "Include",
+
+    "Type",
+    "Field",
 
     "Global",
 
@@ -59,6 +62,9 @@ named!(node<ast::Node>,
            opt!(whitespace),
            alt!(
                include |
+               chain!(
+                   type_decl: type_decl,
+                   || ast::Node::TypeDecl(type_decl)) |
                global_variable_decl |
                chain!(
                    function_decl: function_decl,
@@ -98,6 +104,59 @@ named!(string_literal<String>,
                str::from_utf8),
            FromStr::from_str));
 
+named!(type_decl<ast::TypeDecl>,
+       chain!(
+           tag!("Type") ~
+               space ~
+               name: identifier ~
+               whitespace ~
+               fields: many0!(
+                   delimited!(
+                       opt!(whitespace),
+                       field,
+                       opt!(whitespace))) ~
+               opt!(whitespace) ~
+               tag!("End") ~
+               space ~
+               tag!("Type"),
+           || ast::TypeDecl {
+               name: name,
+               fields: fields
+           }));
+
+named!(identifier<String>,
+       map_res!(
+           chain!(
+               identifier_str: map_res!(
+                   recognize!(
+                       chain!(alpha ~ opt!(alphanumeric), || ())),
+                   str::from_utf8) ~
+                   _is_keyword: expr_opt!(
+                       if KEYWORDS.contains(&identifier_str) {
+                           None
+                       } else {
+                           Some(())
+                       }),
+               || identifier_str),
+           FromStr::from_str));
+
+named!(field<ast::Field>,
+       chain!(
+           tag!("Field") ~
+               space ~
+               name: identifier ~
+               type_specifier: opt!(type_specifier),
+           || ast::Field {
+               name: name,
+               type_specifier: type_specifier
+           }));
+
+named!(type_specifier<ast::TypeSpecifier>,
+       alt!(
+           chain!(tag!("%"), || ast::TypeSpecifier::Int) |
+           chain!(tag!("#"), || ast::TypeSpecifier::Float) |
+           chain!(tag!("$"), || ast::TypeSpecifier::String)));
+
 named!(global_variable_decl<ast::Node>,
        chain!(
            tag!("Global") ~
@@ -121,28 +180,6 @@ named!(variable_decl<ast::VariableDecl>,
                type_specifier: type_specifier,
                init_expr: init_expr
            }));
-
-named!(identifier<String>,
-       map_res!(
-           chain!(
-               identifier_str: map_res!(
-                   recognize!(
-                       chain!(alpha ~ opt!(alphanumeric), || ())),
-                   str::from_utf8) ~
-                   _is_keyword: expr_opt!(
-                       if KEYWORDS.contains(&identifier_str) {
-                           None
-                       } else {
-                           Some(())
-                       }),
-               || identifier_str),
-           FromStr::from_str));
-
-named!(type_specifier<ast::TypeSpecifier>,
-       alt!(
-           chain!(tag!("%"), || ast::TypeSpecifier::Int) |
-           chain!(tag!("#"), || ast::TypeSpecifier::Float) |
-           chain!(tag!("$"), || ast::TypeSpecifier::String)));
 
 type BoxedExpr = Box<ast::Expr>; // This was kindof a hack
 

@@ -6,6 +6,7 @@ pub struct Root {
 #[derive(Debug)]
 pub enum Node {
     Include(String),
+    TypeDecl(TypeDecl),
     GlobalVariableDecl(VariableDecl),
     FunctionDecl(FunctionDecl),
     Statement(Statement),
@@ -13,10 +14,15 @@ pub enum Node {
 }
 
 #[derive(Debug)]
-pub struct VariableDecl {
+pub struct TypeDecl {
     pub name: String,
-    pub type_specifier: Option<TypeSpecifier>,
-    pub init_expr: Option<Box<Expr>>
+    pub fields: Vec<Field>
+}
+
+#[derive(Debug)]
+pub struct Field {
+    pub name: String,
+    pub type_specifier: Option<TypeSpecifier>
 }
 
 #[derive(Debug, Clone)]
@@ -24,6 +30,13 @@ pub enum TypeSpecifier {
     Int,
     Float,
     String
+}
+
+#[derive(Debug)]
+pub struct VariableDecl {
+    pub name: String,
+    pub type_specifier: Option<TypeSpecifier>,
+    pub init_expr: Option<Box<Expr>>
 }
 
 #[derive(Debug)]
