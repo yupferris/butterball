@@ -187,11 +187,11 @@ named!(atomic_value<BoxedExpr>,
            chain!(
                ret: alt!(
                    chain!(
-                       integer_literal: integer_literal,
-                       || ast::Expr::IntegerLiteral(integer_literal)) |
-                   chain!(
                        float_literal: float_literal,
                        || ast::Expr::FloatLiteral(float_literal)) |
+                   chain!(
+                       integer_literal: integer_literal,
+                       || ast::Expr::IntegerLiteral(integer_literal)) |
                    chain!(
                        bool_literal: bool_literal,
                        || ast::Expr::BoolLiteral(bool_literal)) |
@@ -289,13 +289,6 @@ fn reduce_bin_op_expr(
     }
 }
 
-named!(integer_literal<i32>,
-       map_res!(
-           map_res!(
-               recognize!(preceded!(opt!(tag!("-")), digit)),
-               str::from_utf8),
-           FromStr::from_str));
-
 named!(float_literal<f32>,
        map_res!(
            map_res!(
@@ -311,6 +304,13 @@ named!(float_literal<f32>,
                                tag!(".") ~
                                integer_literal,
                            || ()))),
+               str::from_utf8),
+           FromStr::from_str));
+
+named!(integer_literal<i32>,
+       map_res!(
+           map_res!(
+               recognize!(preceded!(opt!(tag!("-")), digit)),
                str::from_utf8),
            FromStr::from_str));
 
