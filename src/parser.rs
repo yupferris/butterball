@@ -16,10 +16,12 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 18] = [
+const KEYWORDS: [&'static str; 19] = [
     "Include",
 
     "Global",
+
+    "Function",
 
     "End",
 
@@ -54,10 +56,16 @@ named!(node<ast::Node>,
            opt!(whitespace),
            alt!(
                include |
-               global_decl |
+               global_variable_decl |
+               chain!(
+                   function_decl: function_decl,
+                   || ast::Node::FunctionDecl(function_decl)) |
                chain!(
                    statement: statement,
-                   || ast::Node::Statement(statement))),
+                   || ast::Node::Statement(statement)) |
+               chain!(
+                   tag!("End"),
+                   || ast::Node::End)),
            opt!(whitespace)));
 
 // Some more 1337 h4xx0rzzzz :P
@@ -88,11 +96,16 @@ named!(string_literal<String>,
                str::from_utf8),
            FromStr::from_str));
 
-named!(global_decl<ast::Node>,
+named!(global_variable_decl<ast::Node>,
        chain!(
            tag!("Global") ~
                space ~
-               name: identifier ~
+               variable_decl: variable_decl,
+           || ast::Node::GlobalVariableDecl(variable_decl)));
+
+named!(variable_decl<ast::VariableDecl>,
+       chain!(
+           name: identifier ~
                type_specifier: opt!(type_specifier) ~
                init_expr: opt!(
                    preceded!(
@@ -101,11 +114,11 @@ named!(global_decl<ast::Node>,
                            tag!("="),
                            opt!(space)),
                        expr)),
-           || ast::Node::GlobalDecl(ast::GlobalDecl {
+           || ast::VariableDecl {
                name: name,
                type_specifier: type_specifier,
                init_expr: init_expr
-           })));
+           }));
 
 named!(identifier<String>,
        map_res!(
@@ -344,6 +357,28 @@ named!(variable_ref<ast::VariableRef>,
            || ast::VariableRef {
                name: name,
                type_specifier: type_specifier
+           }));
+
+named!(function_decl<ast::FunctionDecl>,
+       chain!(
+           tag!("Function") ~
+               space ~
+               name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               args: delimited!(
+                   tag!("("),
+                   separated_list!(tag!(","), variable_decl),
+                   tag!(")")) ~
+               body: statement_list ~
+               opt!(whitespace) ~
+               tag!("End") ~
+               space ~
+               tag!("Function"),
+           || ast::FunctionDecl {
+               name: name,
+               type_specifier: type_specifier,
+               args: args,
+               body: body
            }));
 
 named!(statement<ast::Statement>,
