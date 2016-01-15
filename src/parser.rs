@@ -8,7 +8,7 @@ use nom::{IResult, alpha, alphanumeric, digit, space, multispace};
 pub fn parse(source: &String) -> Result<ast::Root, String> {
     match root(source.as_bytes()) {
         IResult::Done(_, root) => Ok(root),
-        _ => unreachable!()
+        err => Err(format!("Parser didn't finish: {:?}", err))
     }
 }
 
@@ -55,7 +55,7 @@ named!(root<ast::Root>,
            || ast::Root { nodes: nodes }));
 
 named!(node<ast::Node>,
-       delimited!(
+       preceded!(
            opt!(whitespace),
            alt!(
                include |
@@ -68,8 +68,7 @@ named!(node<ast::Node>,
                    || ast::Node::Statement(statement)) |
                chain!(
                    tag!("End"),
-                   || ast::Node::End)),
-           opt!(whitespace)));
+                   || ast::Node::End))));
 
 // Some more 1337 h4xx0rzzzz :P
 named!(whitespace<&[u8]>,
@@ -204,28 +203,35 @@ named!(unary_expr<BoxedExpr>,
 named!(atomic_value<BoxedExpr>,
        delimited!(
            opt!(space),
-           chain!(
-               ret: alt!(
-                   chain!(
-                       float_literal: float_literal,
-                       || ast::Expr::FloatLiteral(float_literal)) |
-                   chain!(
-                       integer_literal: integer_literal,
-                       || ast::Expr::IntegerLiteral(integer_literal)) |
-                   chain!(
-                       bool_literal: bool_literal,
-                       || ast::Expr::BoolLiteral(bool_literal)) |
-                   chain!(
-                       string_literal: string_literal,
-                       || ast::Expr::StringLiteral(string_literal)) |
-                   chain!(
-                       function_call_expr: function_call_expr,
-                       || ast::Expr::FunctionCall(
-                           function_call_expr)) |
-                   chain!(
-                       variable_ref: variable_ref,
-                       || ast::Expr::VariableRef(variable_ref))),
-               || Box::new(ret)),
+           alt!(
+               chain!(
+                   ret: alt!(
+                       chain!(
+                           float_literal: float_literal,
+                           || ast::Expr::FloatLiteral(float_literal)) |
+                       chain!(
+                           integer_literal: integer_literal,
+                           || ast::Expr::IntegerLiteral(
+                               integer_literal)) |
+                       chain!(
+                           bool_literal: bool_literal,
+                           || ast::Expr::BoolLiteral(bool_literal)) |
+                       chain!(
+                           string_literal: string_literal,
+                           || ast::Expr::StringLiteral(
+                               string_literal)) |
+                       chain!(
+                           function_call_expr: function_call_expr,
+                           || ast::Expr::FunctionCall(
+                               function_call_expr)) |
+                       chain!(
+                           variable_ref: variable_ref,
+                           || ast::Expr::VariableRef(variable_ref))),
+                   || Box::new(ret)) |
+               delimited!(
+                   tag!("("),
+                   expr,
+                   tag!(")"))),
            opt!(space)));
 
 named!(comp_op<ast::Op>,
