@@ -230,6 +230,8 @@ named!(comp_op<ast::Op>,
            opt!(space),
            alt!(
                chain!(tag!("="), || ast::Op::Eq) |
+               chain!(tag!("<="), || ast::Op::LtEq) |
+               chain!(tag!(">="), || ast::Op::GtEq) |
                chain!(tag!("<"), || ast::Op::Lt) |
                chain!(tag!(">"), || ast::Op::Gt)),
            opt!(space)));

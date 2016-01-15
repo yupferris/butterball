@@ -77,6 +77,8 @@ pub enum Op {
     Or,
     Xor,
 
+    LtEq,
+    GtEq,
     Lt,
     Gt,
 
