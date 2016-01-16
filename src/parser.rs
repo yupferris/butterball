@@ -145,10 +145,20 @@ named!(field<ast::Field>,
            tag!("Field") ~
                space ~
                name: identifier ~
-               type_specifier: opt!(type_specifier),
+               type_specifier: opt!(type_specifier) ~
+               array_size: opt!(
+                   chain!(
+                       opt!(space) ~
+                           tag!("[") ~
+                           opt!(space) ~
+                           size: integer_literal ~
+                           opt!(space) ~
+                           tag!("]"),
+                       || size)),
            || ast::Field {
                name: name,
-               type_specifier: type_specifier
+               type_specifier: type_specifier,
+               array_size: array_size
            }));
 
 named!(type_specifier<ast::TypeSpecifier>,

@@ -22,7 +22,8 @@ pub struct TypeDecl {
 #[derive(Debug)]
 pub struct Field {
     pub name: String,
-    pub type_specifier: Option<TypeSpecifier>
+    pub type_specifier: Option<TypeSpecifier>,
+    pub array_size: Option<i32>
 }
 
 #[derive(Debug, Clone)]
