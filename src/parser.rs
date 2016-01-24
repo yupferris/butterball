@@ -16,13 +16,14 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 23] = [
+const KEYWORDS: [&'static str; 24] = [
     "Include",
 
     "Type",
     "Field",
 
     "Global",
+    "Const",
 
     "Function",
 
@@ -66,6 +67,7 @@ named!(node<ast::Node>,
                    type_decl: type_decl,
                    || ast::Node::TypeDecl(type_decl)) |
                global_variable_decl |
+               const_decl |
                chain!(
                    function_decl: function_decl,
                    || ast::Node::FunctionDecl(function_decl)) |
@@ -417,6 +419,24 @@ named!(variable_ref<ast::VariableRef>,
                name: name,
                type_specifier: type_specifier
            }));
+
+named!(const_decl<ast::Node>,
+       chain!(
+           tag!("Const") ~
+               space ~
+               name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               init_expr: preceded!(
+                   delimited!(
+                       opt!(space),
+                       tag!("="),
+                       opt!(space)),
+                   expr),
+           || ast::Node::ConstDecl(ast::ConstDecl {
+               name: name,
+               type_specifier: type_specifier,
+               init_expr: init_expr
+           })));
 
 named!(function_decl<ast::FunctionDecl>,
        chain!(

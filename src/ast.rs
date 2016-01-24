@@ -8,6 +8,7 @@ pub enum Node {
     Include(String),
     TypeDecl(TypeDecl),
     GlobalVariableDecl(VariableDecl),
+    ConstDecl(ConstDecl),
     FunctionDecl(FunctionDecl),
     Statement(Statement),
     End
@@ -38,6 +39,13 @@ pub struct VariableDecl {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>,
     pub init_expr: Option<Box<Expr>>
+}
+
+#[derive(Debug)]
+pub struct ConstDecl {
+    pub name: String,
+    pub type_specifier: Option<TypeSpecifier>,
+    pub init_expr: Box<Expr>
 }
 
 #[derive(Debug)]
