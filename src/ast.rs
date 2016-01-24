@@ -34,7 +34,8 @@ pub struct Field {
 pub enum TypeSpecifier {
     Int,
     Float,
-    String
+    String,
+    Custom(String)
 }
 
 #[derive(Debug)]

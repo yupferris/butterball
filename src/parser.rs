@@ -185,7 +185,11 @@ named!(type_specifier<ast::TypeSpecifier>,
        alt!(
            chain!(tag!("%"), || ast::TypeSpecifier::Int) |
            chain!(tag!("#"), || ast::TypeSpecifier::Float) |
-           chain!(tag!("$"), || ast::TypeSpecifier::String)));
+           chain!(tag!("$"), || ast::TypeSpecifier::String) |
+           chain!(
+               tag!(".") ~
+                   type_name: identifier,
+               || ast::TypeSpecifier::Custom(type_name))));
 
 named!(global_variable_decl<ast::Node>,
        chain!(
