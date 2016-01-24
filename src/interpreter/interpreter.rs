@@ -49,20 +49,27 @@ fn eval_expr(context: &mut Context, expr: &Box<ast::Expr>) -> Value {
 }
 
 fn eval_function_call(context: &mut Context, function_call: &ast::FunctionCall) -> Value {
+    // Function calls and array element lookups are syntactically equivalent, so both need to be handled here.
+    let args = function_call.arguments.iter().map(|expr| eval_expr(context, expr)).collect::<Vec<_>>();
+
     let function_name = &function_call.function_name;
     if !context.function_table.contains_key(function_name) {
-        panic!("Function not found: \"{}\"", function_name);
+        match context.try_resolve_variable(function_name) {
+            Some(&mut VariableTableEntry::Array(ref mut array)) => {
+                return array.index(&args).clone();
+            },
+            _ => panic!("Function or array not found: \"{}\"", function_name)
+        }
     }
+
     let function_table_entry = context.function_table.get(function_name).unwrap();
     match function_table_entry {
         &FunctionTableEntry::Decl(ref function_decl) => {
             let context = unsafe { &mut *(context as *const Context as *mut Context) }; // Fuck you, borrow checker!
-            let args = function_call.arguments.iter().map(|expr| eval_expr(context, expr)).collect::<Vec<_>>();
             eval_function_decl(context, function_decl, args)
         },
         &FunctionTableEntry::Impl(ref f) => {
             let context = unsafe { &mut *(context as *const Context as *mut Context) }; // Fuck you, borrow checker!
-            let args = function_call.arguments.iter().map(|expr| eval_expr(context, expr)).collect::<Vec<_>>();
             f(context, &args)
         }
     }
@@ -121,6 +128,8 @@ fn eval_bin_op(context: &mut Context, bin_op: &ast::BinOp) -> Value {
 fn interpret_statement(context: &mut Context, statement: &ast::Statement) {
     match statement {
         &ast::Statement::ArrayDecl(ref array_decl) => interpret_array_decl(context, array_decl),
+        &ast::Statement::If(ref if_statement) => interpret_if_statement(context, if_statement),
+        &ast::Statement::While(ref while_statement) => interpret_while(context, while_statement),
         &ast::Statement::For(ref for_statement) => interpret_for(context, for_statement),
         &ast::Statement::Restore(ref label_name) => interpret_restore(context, label_name),
         &ast::Statement::Read(ref l_value) => interpret_read(context, l_value),
@@ -154,6 +163,38 @@ fn interpret_array_decl(context: &mut Context, array_decl: &ast::ArrayDecl) {
     context.add_variable(array_decl.name.clone(), VariableTableEntry::Array(array));
 }
 
+fn interpret_if_statement(context: &mut Context, if_statement: &ast::If) {
+    if eval_expr(context, &if_statement.condition).as_bool() {
+        context.push_scope();
+
+        for statement in if_statement.body.iter() {
+            interpret_statement(context, statement);
+        }
+
+        context.pop_scope();
+    } else if let &Some(ref else_clause) = &if_statement.else_clause {
+        context.push_scope();
+
+        for statement in else_clause.body.iter() {
+            interpret_statement(context, statement);
+        }
+
+        context.pop_scope();
+    }
+}
+
+fn interpret_while(context: &mut Context, while_statement: &ast::While) {
+    while eval_expr(context, &while_statement.condition).as_bool() {
+        context.push_scope();
+
+        for statement in while_statement.body.iter() {
+            interpret_statement(context, statement);
+        }
+
+        context.pop_scope();
+    }
+}
+
 fn interpret_for(context: &mut Context, for_statement: &ast::For) {
     context.push_scope();
 
@@ -184,9 +225,13 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
             break;
         }
 
+        context.push_scope();
+
         for statement in for_statement.body.iter() {
             interpret_statement(context, statement);
         }
+
+        context.pop_scope();
 
         interpret_statement(context, &increment);
     }

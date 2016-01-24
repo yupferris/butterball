@@ -7,6 +7,9 @@ pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
     vec![
         ("Float", Box::new(float_cast)),
 
+        ("Sin", Box::new(sin)),
+        ("Cos", Box::new(cos)),
+
         ("AppTitle", Box::new(app_title)),
         ("Graphics", Box::new(graphics)),
 
@@ -15,7 +18,11 @@ pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
 
         ("HidePointer", Box::new(hide_pointer)),
 
-        ("MilliSecs", Box::new(millisecs))]
+        ("MilliSecs", Box::new(millisecs)),
+
+        ("KeyDown", Box::new(key_down)),
+
+        ("Cls", Box::new(cls))]
 }
 
 fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -25,6 +32,14 @@ fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
         &Value::Float(x) => x,
         _ => panic!("Unable to cast value to float: {:?}", arg)
     })
+}
+
+fn sin(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float().sin())
+}
+
+fn cos(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float().cos())
 }
 
 fn app_title(context: &mut Context, args: &Vec<Value>) -> Value {
@@ -78,9 +93,27 @@ fn millisecs(_: &mut Context, _: &Vec<Value>) -> Value {
     Value::Integer((time::precise_time_ns() / 1000000) as i32)
 }
 
+fn key_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
+    println!("WARNING: KeyDown called but not yet implemented");
+
+    Value::Bool(false)
+}
+
+fn cls(_context: &mut Context, _args: &Vec<Value>) -> Value {
+    println!("WARNING: Cls called but not yet implemented");
+
+    Value::Unit
+}
+
 pub fn build_un_op_impls_table() -> Vec<((ast::Op, ValueType), FunctionImpl)> {
     vec![
+        ((ast::Op::Not, ValueType::Bool), Box::new(un_op_not_bool)),
+
         ((ast::Op::Neg, ValueType::Float), Box::new(un_op_neg_float))]
+}
+
+fn un_op_not_bool(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(!args[0].as_bool())
 }
 
 fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -89,30 +122,54 @@ fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
 
 pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), FunctionImpl)> {
     vec![
+        ((ast::Op::Lt, ValueType::Float, ValueType::Integer), Box::new(bin_op_lt_float_int)),
+
         ((ast::Op::Gt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_int_int)),
+        ((ast::Op::Gt, ValueType::Float, ValueType::Integer), Box::new(bin_op_gt_float_int)),
 
         ((ast::Op::Eq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_eq_int_int)),
 
+        ((ast::Op::And, ValueType::Bool, ValueType::Bool), Box::new(bin_op_and_bool_bool)),
+
         ((ast::Op::Add, ValueType::Integer, ValueType::Integer), Box::new(bin_op_add_int_int)),
         ((ast::Op::Add, ValueType::Integer, ValueType::Float), Box::new(bin_op_add_int_float)),
+        ((ast::Op::Add, ValueType::Float, ValueType::Integer), Box::new(bin_op_add_float_int)),
+        ((ast::Op::Add, ValueType::Float, ValueType::Float), Box::new(bin_op_add_float_float)),
 
         ((ast::Op::Sub, ValueType::Integer, ValueType::Integer), Box::new(bin_op_sub_int_int)),
+        ((ast::Op::Sub, ValueType::Float, ValueType::Integer), Box::new(bin_op_sub_float_int)),
+        ((ast::Op::Sub, ValueType::Float, ValueType::Float), Box::new(bin_op_sub_float_float)),
 
         ((ast::Op::Mul, ValueType::Integer, ValueType::Integer), Box::new(bin_op_mul_int_int)),
         ((ast::Op::Mul, ValueType::Integer, ValueType::Float), Box::new(bin_op_mul_int_float)),
+        ((ast::Op::Mul, ValueType::Float, ValueType::Integer), Box::new(bin_op_mul_float_int)),
+        ((ast::Op::Mul, ValueType::Float, ValueType::Float), Box::new(bin_op_mul_float_float)),
 
         ((ast::Op::Div, ValueType::Integer, ValueType::Integer), Box::new(bin_op_div_int_int)),
+        ((ast::Op::Div, ValueType::Float, ValueType::Float), Box::new(bin_op_div_float_float)),
 
         ((ast::Op::Shl, ValueType::Integer, ValueType::Integer), Box::new(bin_op_shl_int_int)),
         ((ast::Op::Shl, ValueType::Float, ValueType::Integer), Box::new(bin_op_shl_float_int))]
+}
+
+fn bin_op_lt_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_float() < (args[1].as_integer() as f32))
 }
 
 fn bin_op_gt_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Bool(args[0].as_integer() > args[1].as_integer())
 }
 
+fn bin_op_gt_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_float() > (args[1].as_integer() as f32))
+}
+
 fn bin_op_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Bool(args[0].as_integer() == args[1].as_integer())
+}
+
+fn bin_op_and_bool_bool(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_bool() && args[1].as_bool())
 }
 
 fn bin_op_add_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -123,8 +180,24 @@ fn bin_op_add_int_float(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Float((args[0].as_integer() as f32) + args[1].as_float())
 }
 
+fn bin_op_add_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() + (args[1].as_integer() as f32))
+}
+
+fn bin_op_add_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() + args[1].as_float())
+}
+
 fn bin_op_sub_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Integer(args[0].as_integer() - args[1].as_integer())
+}
+
+fn bin_op_sub_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() - (args[1].as_integer() as f32))
+}
+
+fn bin_op_sub_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() - args[1].as_float())
 }
 
 fn bin_op_mul_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -135,8 +208,20 @@ fn bin_op_mul_int_float(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Float((args[0].as_integer() as f32) * args[1].as_float())
 }
 
+fn bin_op_mul_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() * (args[1].as_integer() as f32))
+}
+
+fn bin_op_mul_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() * args[1].as_float())
+}
+
 fn bin_op_div_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Integer(args[0].as_integer() / args[1].as_integer())
+}
+
+fn bin_op_div_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(args[0].as_float() / args[1].as_float())
 }
 
 fn bin_op_shl_int_int(_: &mut Context, args: &Vec<Value>) -> Value {

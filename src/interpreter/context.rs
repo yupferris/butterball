@@ -69,14 +69,7 @@ impl Context {
     pub fn update_array_elem_ref(&mut self, name: &String, dimensions: Vec<Value>, value: Value) {
         match self.resolve_variable(name) {
             &mut VariableTableEntry::Array(ref mut array) => {
-                let mut index = 0;
-                let mut dim_multiplier = 0;
-                for i in (0..dimensions.len()).rev() {
-                    let current_dimension_size = array.dimensions[i];
-                    index += dimensions[i].as_integer() + dim_multiplier * current_dimension_size;
-                    dim_multiplier *= current_dimension_size;
-                }
-                array.values[index as usize] = value;
+                *array.index(&dimensions) = value;
             },
             _ => panic!("Variable wasn't an array: {}", name)
         }
@@ -151,6 +144,19 @@ pub struct Array {
     pub values: Vec<Value>
 }
 
+impl Array {
+    pub fn index(&mut self, dimensions: &Vec<Value>) -> &mut Value {
+        let mut index = 0;
+        let mut dim_multiplier = 0;
+        for i in (0..dimensions.len()).rev() {
+            let current_dimension_size = self.dimensions[i];
+            index += dimensions[i].as_integer() + dim_multiplier * current_dimension_size;
+            dim_multiplier *= current_dimension_size;
+        }
+        &mut self.values[index as usize]
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value {
     Unit,
@@ -173,12 +179,14 @@ impl Value {
     pub fn as_integer(&self) -> i32 {
         match self {
             &Value::Integer(value) => value,
+            &Value::Float(value) => value as i32,
             _ => panic!("Value was not an integer: {:?}", self)
         }
     }
 
     pub fn as_float(&self) -> f32 {
         match self {
+            &Value::Integer(value) => value as f32,
             &Value::Float(value) => value,
             _ => panic!("Value was not an float: {:?}", self)
         }
