@@ -9,6 +9,9 @@ pub struct Context {
     pub un_op_function_table: UnOpFunctionTable,
     pub bin_op_function_table: BinOpFunctionTable,
 
+    pub data_table: Vec<Value>,
+    pub data_labels: HashMap<String, usize>,
+
     stack_frames: Vec<VariableTable>,
 
     pub program_state: ProgramState
@@ -16,10 +19,15 @@ pub struct Context {
 
 impl Context {
     pub fn new(ast: &ast::Root) -> Context {
+        let (data_table, data_labels) = build_data_tables(ast);
+
         Context {
             function_table: build_function_table(ast),
             un_op_function_table: build_un_op_function_table(),
             bin_op_function_table: build_bin_op_function_table(),
+
+            data_table: data_table,
+            data_labels: data_labels,
 
             stack_frames: vec![HashMap::new()],
 
@@ -218,6 +226,34 @@ pub enum ValueType {
     Float,
     Bool,
     String
+}
+
+fn build_data_tables(root: &ast::Root) -> (Vec<Value>, HashMap<String, usize>) {
+    let mut data_table = Vec::new();
+    let mut data_labels = HashMap::new();
+
+    for node in root.nodes.iter() {
+        match node {
+            &ast::Node::Label(ref name) => {
+                data_labels.insert(name.clone(), data_table.len());
+            },
+            &ast::Node::Data(ref data) => {
+                for value in data.values.iter() {
+                    data_table.push(match **value {
+                        ast::Expr::FloatLiteral(x) => Value::Float(x),
+                        ast::Expr::IntegerLiteral(x) => Value::Integer(x),
+                        ast::Expr::BoolLiteral(x) => Value::Bool(x),
+                        ast::Expr::StringLiteral(ref x) => Value::String(x.clone()),
+
+                        _ => panic!("Invalid data value: {:?}", value)
+                    });
+                }
+            },
+            _ => ()
+        }
+    }
+
+    (data_table, data_labels)
 }
 
 fn build_function_table(root: &ast::Root) -> FunctionTable {

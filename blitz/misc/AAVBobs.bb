@@ -217,3 +217,7 @@ Data 0,3,3,1,1,1,1,2,2,2,2,2,2,3,3,0
 Data 0,0,3,3,1,1,1,1,1,1,1,1,3,3,0,0
 Data 0,0,0,3,3,3,1,1,1,1,3,3,3,0,0,0
 Data 0,0,0,0,0,3,3,3,3,3,3,0,0,0,0,0
+
+; This is a hack to please the parser; for some reason it doesn't like to end the file on an expression (????)
+Function hack()
+End Function

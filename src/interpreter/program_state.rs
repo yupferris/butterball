@@ -4,5 +4,7 @@ use super::super::minifb::Window;
 pub struct ProgramState {
     pub app_title: String,
 
-    pub window: Option<Window>
+    pub window: Option<Window>,
+
+    pub data_pointer: usize
 }

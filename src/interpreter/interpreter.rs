@@ -122,6 +122,8 @@ fn interpret_statement(context: &mut Context, statement: &ast::Statement) {
     match statement {
         &ast::Statement::ArrayDecl(ref array_decl) => interpret_array_decl(context, array_decl),
         &ast::Statement::For(ref for_statement) => interpret_for(context, for_statement),
+        &ast::Statement::Restore(ref label_name) => interpret_restore(context, label_name),
+        &ast::Statement::Read(ref l_value) => interpret_read(context, l_value),
         &ast::Statement::Assignment(ref assignment) => interpret_assignment(context, assignment),
         &ast::Statement::FunctionCall(ref function_call) => { eval_function_call(context, function_call); },
         _ => panic!("Unrecognized statement: {:?}", statement)
@@ -190,6 +192,26 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
     }
 
     context.pop_scope();
+}
+
+fn interpret_restore(context: &mut Context, label_name: &String) {
+    context.program_state.data_pointer = *context.data_labels.get(label_name).unwrap();
+}
+
+fn interpret_read(context: &mut Context, l_value: &ast::LValue) {
+    if context.program_state.data_pointer >= context.data_table.len() {
+        panic!(
+            "Data pointer out of range: {}/{}\nData table: {:#?}",
+            context.program_state.data_pointer,
+            context.data_table.len(),
+            context.data_table);
+    }
+    let expr = context.data_table[context.program_state.data_pointer].to_expr();
+    context.program_state.data_pointer += 1;
+    interpret_assignment(context, &ast::Assignment {
+        l_value: l_value.clone(),
+        expr: expr
+    });
 }
 
 fn interpret_assignment(context: &mut Context, assignment: &ast::Assignment) {
