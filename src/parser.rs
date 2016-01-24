@@ -69,7 +69,6 @@ named!(node<ast::Node>,
                    || ast::Node::TypeDecl(type_decl)) |
                global_variable_decl |
                const_decl |
-               array_decl |
                chain!(
                    function_decl: function_decl,
                    || ast::Node::FunctionDecl(function_decl)) |
@@ -440,27 +439,6 @@ named!(const_decl<ast::Node>,
                init_expr: init_expr
            })));
 
-named!(array_decl<ast::Node>,
-       chain!(
-           tag!("Dim") ~
-               space ~
-               name: identifier ~
-               type_specifier: opt!(type_specifier) ~
-               opt!(space) ~
-               tag!("(") ~
-               dimensions: separated_nonempty_list!(
-                   tag!(","),
-                   delimited!(
-                       opt!(space),
-                       expr,
-                       opt!(space))) ~
-               tag!(")"),
-           || ast::Node::ArrayDecl(ast::ArrayDecl {
-               name: name,
-               type_specifier: type_specifier,
-               dimensions: dimensions
-           })));
-
 named!(function_decl<ast::FunctionDecl>,
        chain!(
            tag!("Function") ~
@@ -486,6 +464,9 @@ named!(function_decl<ast::FunctionDecl>,
 named!(statement<ast::Statement>,
        alt!(
            chain!(
+               array_decl: array_decl,
+               || ast::Statement::ArrayDecl(array_decl)) |
+           chain!(
                if_statement: if_statement,
                || ast::Statement::If(if_statement)) |
            chain!(
@@ -507,6 +488,27 @@ named!(statement<ast::Statement>,
            chain!(
                function_call: function_call_statement,
                || ast::Statement::FunctionCall(function_call))));
+
+named!(array_decl<ast::ArrayDecl>,
+       chain!(
+           tag!("Dim") ~
+               space ~
+               name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               opt!(space) ~
+               tag!("(") ~
+               dimensions: separated_nonempty_list!(
+                   tag!(","),
+                   delimited!(
+                       opt!(space),
+                       expr,
+                       opt!(space))) ~
+               tag!(")"),
+           || ast::ArrayDecl {
+               name: name,
+               type_specifier: type_specifier,
+               dimensions: dimensions
+           }));
 
 named!(if_statement<ast::If>,
        chain!(

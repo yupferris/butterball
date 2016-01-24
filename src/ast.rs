@@ -10,7 +10,6 @@ pub enum Node {
     TypeDecl(TypeDecl),
     GlobalVariableDecl(VariableDecl),
     ConstDecl(ConstDecl),
-    ArrayDecl(ArrayDecl),
     FunctionDecl(FunctionDecl),
     Statement(Statement),
     End
@@ -136,6 +135,7 @@ pub struct BinOp {
 
 #[derive(Debug)]
 pub enum Statement {
+    ArrayDecl(ArrayDecl),
     If(If),
     While(While),
     Repeat(Repeat),
