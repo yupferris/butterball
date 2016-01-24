@@ -13,6 +13,7 @@ pub enum Node {
     FunctionDecl(FunctionDecl),
     Statement(Statement),
     Label(String),
+    Data(Data),
     End
 }
 
@@ -210,4 +211,9 @@ pub struct Select {
 pub struct CaseArm {
     pub value: Box<Expr>,
     pub body: StatementList
+}
+
+#[derive(Debug)]
+pub struct Data {
+    pub values: Vec<Box<Expr>>
 }

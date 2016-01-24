@@ -16,7 +16,7 @@ pub fn parse(source: &String) -> Result<ast::Root, String> {
 // a quick initializer for those yet (see
 // https://github.com/rust-lang/rfcs/issues/542 for more
 // info).
-const KEYWORDS: [&'static str; 27] = [
+const KEYWORDS: [&'static str; 28] = [
     "Include",
 
     "Type",
@@ -50,6 +50,7 @@ const KEYWORDS: [&'static str; 27] = [
 
     "Restore",
     "Read",
+    "Data",
 
     "True",
     "False",
@@ -82,6 +83,15 @@ named!(node<ast::Node>,
                    tag!(".") ~
                        name: identifier,
                    || ast::Node::Label(name)) |
+               chain!(
+                   tag!("Data") ~
+                       space ~
+                       values: separated_nonempty_list!(
+                           tag!(","),
+                           expr),
+                   || ast::Node::Data(ast::Data {
+                       values: values
+                   })) |
                chain!(
                    tag!("End"),
                    || ast::Node::End))));
