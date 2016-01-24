@@ -3,6 +3,7 @@ extern crate nom;
 
 mod ast;
 mod parser;
+mod interpreter;
 
 use std::env;
 use std::io;
@@ -24,8 +25,10 @@ fn compile() -> Result<(), String> {
 
     println!("Parsing...");
     let ast = try!(parser::parse(&file));
+    //println!("AST: {:#?}", ast);
 
-    println!("AST: {:#?}", ast);
+    println!("Interpreting...");
+    interpreter::interpret(&ast);
 
     Ok(())
 }

@@ -38,7 +38,7 @@ pub enum TypeSpecifier {
     Custom(String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VariableDecl {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>,
@@ -52,14 +52,14 @@ pub struct ConstDecl {
     pub init_expr: Box<Expr>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayDecl {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>,
     pub dimensions: Vec<Box<Expr>>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionDecl {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>,
@@ -136,7 +136,7 @@ pub struct BinOp {
     pub rhs: Box<Expr>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     ArrayDecl(ArrayDecl),
     If(If),
@@ -150,7 +150,7 @@ pub enum Statement {
     FunctionCall(FunctionCall)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct If {
     pub condition: Box<Expr>,
     pub body: StatementList,
@@ -159,23 +159,23 @@ pub struct If {
 
 pub type StatementList = Vec<Statement>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ElseClause {
     pub body: StatementList
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct While {
     pub condition: Box<Expr>,
     pub body: StatementList
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Repeat {
     pub body: StatementList
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct For {
     pub initialization: Assignment,
     pub to: Box<Expr>,
@@ -183,32 +183,32 @@ pub struct For {
     pub body: StatementList
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Assignment {
     pub l_value: LValue,
     pub expr: Box<Expr>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LValue {
     VariableRef(VariableRef),
     ArrayElemRef(ArrayElemRef)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayElemRef {
     pub array_name: String,
     pub type_specifier: Option<TypeSpecifier>,
     pub dimensions: Vec<Box<Expr>>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Select {
     pub expr: Box<Expr>,
     pub arms: Vec<CaseArm>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CaseArm {
     pub value: Box<Expr>,
     pub body: StatementList
