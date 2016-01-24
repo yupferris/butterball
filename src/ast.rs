@@ -3,12 +3,14 @@ pub struct Root {
     pub nodes: Vec<Node>
 }
 
+// TODO: Better name
 #[derive(Debug)]
 pub enum Node {
     Include(String),
     TypeDecl(TypeDecl),
     GlobalVariableDecl(VariableDecl),
     ConstDecl(ConstDecl),
+    ArrayDecl(ArrayDecl),
     FunctionDecl(FunctionDecl),
     Statement(Statement),
     End
@@ -46,6 +48,13 @@ pub struct ConstDecl {
     pub name: String,
     pub type_specifier: Option<TypeSpecifier>,
     pub init_expr: Box<Expr>
+}
+
+#[derive(Debug)]
+pub struct ArrayDecl {
+    pub name: String,
+    pub type_specifier: Option<TypeSpecifier>,
+    pub dimensions: Vec<Box<Expr>>
 }
 
 #[derive(Debug)]
