@@ -87,7 +87,7 @@ named!(comment<&[u8]>,
        recognize!(
            delimited!(
                char!(';'),
-               opt!(is_not!(";\r\n")),
+               opt!(is_not!("\r\n")),
                alt!(tag!("\n") | tag!("\r\n")))));
 
 named!(include<ast::Node>,
