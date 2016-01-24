@@ -281,7 +281,7 @@ named!(atomic_value<BoxedExpr>,
                            float_literal: float_literal,
                            || ast::Expr::FloatLiteral(float_literal)) |
                        chain!(
-                           integer_literal: integer_literal,
+                           integer_literal: alt!(integer_literal | hex_literal),
                            || ast::Expr::IntegerLiteral(
                                integer_literal)) |
                        chain!(
@@ -413,6 +413,28 @@ named!(integer_literal<i32>,
                digit,
                str::from_utf8),
            FromStr::from_str));
+
+named!(hex_literal<i32>,
+       preceded!(
+           tag!("$"),
+           map_res!(
+               map_res!(
+                   recognize!(many1!(alt!(
+                       digit |
+                       tag!("A") |
+                       tag!("B") |
+                       tag!("C") |
+                       tag!("D") |
+                       tag!("E") |
+                       tag!("F") |
+                       tag!("a") |
+                       tag!("b") |
+                       tag!("c") |
+                       tag!("d") |
+                       tag!("e") |
+                       tag!("f")))),
+                   str::from_utf8),
+               |hex_str| i32::from_str_radix(hex_str, 16))));
 
 named!(bool_literal<bool>,
        alt!(
