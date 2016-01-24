@@ -3,6 +3,8 @@ use super::super::time;
 use super::super::ast;
 use super::context::*;
 
+use std::f32::consts;
+
 pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
     vec![
         ("Float", Box::new(float_cast)),
@@ -45,11 +47,15 @@ fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 fn sin(_: &mut Context, args: &Vec<Value>) -> Value {
-    Value::Float(args[0].as_float().sin())
+    Value::Float(degrees_to_radians(args[0].as_float()).sin())
+}
+
+fn degrees_to_radians(degrees: f32) -> f32 {
+    degrees / 180.0 * consts::PI
 }
 
 fn cos(_: &mut Context, args: &Vec<Value>) -> Value {
-    Value::Float(args[0].as_float().cos())
+    Value::Float(degrees_to_radians(args[0].as_float()).cos())
 }
 
 fn app_title(context: &mut Context, args: &Vec<Value>) -> Value {
