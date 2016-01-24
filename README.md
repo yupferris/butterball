@@ -12,6 +12,5 @@ So, that's what this is. Of course, it's one of those "I'm bored on Sunday and w
 
 ## Status
 
-- [ ] Parser
-- [ ] Compiler (just enough to get the program into a decently-interpretable graph)
+- [X] Parser _(minus member accesses and member array element accesses)_
 - [ ] Interpreter
