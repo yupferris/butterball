@@ -501,9 +501,9 @@ named!(statement<ast::Statement>,
                select: select,
                || ast::Statement::Select(select)) |
            chain!(
-               variable_assignment: variable_assignment,
-               || ast::Statement::VariableAssignment(
-                   variable_assignment)) |
+               assignment: assignment,
+               || ast::Statement::Assignment(
+                   assignment)) |
            chain!(
                function_call: function_call_statement,
                || ast::Statement::FunctionCall(function_call))));
@@ -578,7 +578,7 @@ named!(for_statement<ast::For>,
        chain!(
            tag!("For") ~
                space ~
-               initialization: variable_assignment ~
+               initialization: assignment ~
                tag!("To") ~
                space ~
                to: expr ~
@@ -626,22 +626,42 @@ named!(case_arm<ast::CaseArm>,
                body: body
            }));
 
-named!(variable_assignment<ast::VariableAssignment>,
+named!(assignment<ast::Assignment>,
        chain!(
-           variable_name: identifier ~
-               type_specifier: opt!(type_specifier) ~
+           l_value: l_value ~
                expr: preceded!(
                    delimited!(
                        opt!(space),
                        tag!("="),
                        opt!(space)),
                    expr),
-           || ast::VariableAssignment {
-               variable: ast::VariableRef {
-                   name: variable_name,
-                   type_specifier: type_specifier
-               },
+           || ast::Assignment {
+               l_value: l_value,
                expr: expr
+           }));
+
+named!(l_value<ast::LValue>,
+       alt!(
+           complete!(chain!(array_elem_ref: array_elem_ref, || ast::LValue::ArrayElemRef(array_elem_ref))) |
+           complete!(chain!(variable_ref: variable_ref, || ast::LValue::VariableRef(variable_ref)))));
+
+named!(array_elem_ref<ast::ArrayElemRef>,
+       chain!(
+           array_name: identifier ~
+               type_specifier: opt!(type_specifier) ~
+               opt!(space) ~
+               tag!("(") ~
+               dimensions: separated_nonempty_list!(
+                   tag!(","),
+                   delimited!(
+                       opt!(space),
+                       expr,
+                       opt!(space))) ~
+               tag!(")"),
+           || ast::ArrayElemRef {
+               array_name: array_name,
+               type_specifier: type_specifier,
+               dimensions: dimensions
            }));
 
 named!(function_call_statement<ast::FunctionCall>,

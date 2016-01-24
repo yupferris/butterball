@@ -141,7 +141,7 @@ pub enum Statement {
     Repeat(Repeat),
     For(For),
     Select(Select),
-    VariableAssignment(VariableAssignment),
+    Assignment(Assignment),
     FunctionCall(FunctionCall)
 }
 
@@ -172,16 +172,29 @@ pub struct Repeat {
 
 #[derive(Debug)]
 pub struct For {
-    pub initialization: VariableAssignment,
+    pub initialization: Assignment,
     pub to: Box<Expr>,
     pub step: Option<Box<Expr>>,
     pub body: StatementList
 }
 
 #[derive(Debug)]
-pub struct VariableAssignment {
-    pub variable: VariableRef,
+pub struct Assignment {
+    pub l_value: LValue,
     pub expr: Box<Expr>
+}
+
+#[derive(Debug)]
+pub enum LValue {
+    VariableRef(VariableRef),
+    ArrayElemRef(ArrayElemRef)
+}
+
+#[derive(Debug)]
+pub struct ArrayElemRef {
+    pub array_name: String,
+    pub type_specifier: Option<TypeSpecifier>,
+    pub dimensions: Vec<Box<Expr>>
 }
 
 #[derive(Debug)]
