@@ -76,7 +76,11 @@ fn graphics(context: &mut Context, args: &Vec<Value>) -> Value {
             &context.program_state.app_title,
             width as usize,
             height as usize,
-            Scale::X2).unwrap());
+            Scale::X1).unwrap());
+
+    context.program_state.width = width;
+    context.program_state.height = height;
+    context.program_state.back_buffer = vec![0; (width * height) as usize];
 
     Value::Unit
 }
@@ -99,9 +103,12 @@ fn lock_buffer(_: &mut Context, _: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn write_pixel_fast(_context: &mut Context, args: &Vec<Value>) -> Value {
-    println!("WARNING: WritePixelFast called but not yet implemented");
-    println!("Args: {:?}, {:?}, {:?}", args[0], args[1], args[2]);
+fn write_pixel_fast(context: &mut Context, args: &Vec<Value>) -> Value {
+    let x = args[0].as_integer();
+    let y = args[1].as_integer();
+    let color = args[2].as_integer() as u32;
+
+    context.program_state.back_buffer[(y * context.program_state.width + x) as usize] = color;
 
     Value::Unit
 }
@@ -140,8 +147,13 @@ fn cls(_context: &mut Context, _args: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn flip(_context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: Flip called but not yet implemented");
+fn flip(context: &mut Context, _: &Vec<Value>) -> Value {
+    println!("WARNING: Flip argument ignored");
+
+    let buffer = &context.program_state.back_buffer;
+    if let Some(ref mut window) = context.program_state.window {
+        window.update(buffer);
+    }
 
     Value::Unit
 }
