@@ -141,7 +141,7 @@ fn interpret_statement(context: &mut Context, statement: &ast::Statement) {
 
 fn interpret_array_decl(context: &mut Context, array_decl: &ast::ArrayDecl) {
     let dimensions = array_decl.dimensions.iter().map(|expr| eval_expr(context, expr).as_integer() + 1).collect::<Vec<_>>();
-    let size = dimensions.iter().fold(0, |acc, x| acc + x) as usize;
+    let size = dimensions.iter().fold(1, |acc, x| acc * x) as usize;
     let mut values = Vec::with_capacity(size);
     for _ in 0..size {
         values.push(Value::default(&array_decl.type_specifier));

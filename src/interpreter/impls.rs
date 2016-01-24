@@ -16,13 +16,23 @@ pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
         ("SetBuffer", Box::new(set_buffer)),
         ("BackBuffer", Box::new(back_buffer)),
 
+        ("LockBuffer", Box::new(lock_buffer)),
+        ("UnlockBuffer", Box::new(unlock_buffer)),
+
+        ("WritePixelFast", Box::new(write_pixel_fast)),
+
         ("HidePointer", Box::new(hide_pointer)),
 
         ("MilliSecs", Box::new(millisecs)),
 
         ("KeyDown", Box::new(key_down)),
+        ("MouseDown", Box::new(mouse_down)),
 
-        ("Cls", Box::new(cls))]
+        ("Cls", Box::new(cls)),
+        ("Flip", Box::new(flip)),
+
+        ("Color", Box::new(color)),
+        ("Text", Box::new(text))]
 }
 
 fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -83,6 +93,25 @@ fn back_buffer(_context: &mut Context, _args: &Vec<Value>) -> Value {
     Value::Integer(0)
 }
 
+fn lock_buffer(_: &mut Context, _: &Vec<Value>) -> Value {
+    println!("LockBuffer called (and ignored)");
+
+    Value::Unit
+}
+
+fn write_pixel_fast(_context: &mut Context, args: &Vec<Value>) -> Value {
+    println!("WARNING: WritePixelFast called but not yet implemented");
+    println!("Args: {:?}, {:?}, {:?}", args[0], args[1], args[2]);
+
+    Value::Unit
+}
+
+fn unlock_buffer(_: &mut Context, _: &Vec<Value>) -> Value {
+    println!("UnlockBuffer called (and ignored)");
+
+    Value::Unit
+}
+
 fn hide_pointer(_context: &mut Context, _args: &Vec<Value>) -> Value {
     println!("WARNING: HidePointer called but not yet implemented");
 
@@ -99,8 +128,32 @@ fn key_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
     Value::Bool(false)
 }
 
+fn mouse_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
+    println!("WARNING: MouseDown called but not yet implemented");
+
+    Value::Bool(false)
+}
+
 fn cls(_context: &mut Context, _args: &Vec<Value>) -> Value {
     println!("WARNING: Cls called but not yet implemented");
+
+    Value::Unit
+}
+
+fn flip(_context: &mut Context, _args: &Vec<Value>) -> Value {
+    println!("WARNING: Flip called but not yet implemented");
+
+    Value::Unit
+}
+
+fn color(_: &mut Context, _: &Vec<Value>) -> Value {
+    println!("Color called (and ignored)");
+
+    Value::Unit
+}
+
+fn text(_: &mut Context, _: &Vec<Value>) -> Value {
+    println!("Text called (and ignored)");
 
     Value::Unit
 }
@@ -122,6 +175,8 @@ fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
 
 pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), FunctionImpl)> {
     vec![
+        ((ast::Op::GtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_eq_int_int)),
+
         ((ast::Op::Lt, ValueType::Float, ValueType::Integer), Box::new(bin_op_lt_float_int)),
 
         ((ast::Op::Gt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_int_int)),
@@ -136,6 +191,8 @@ pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), Funct
         ((ast::Op::Add, ValueType::Float, ValueType::Integer), Box::new(bin_op_add_float_int)),
         ((ast::Op::Add, ValueType::Float, ValueType::Float), Box::new(bin_op_add_float_float)),
 
+        ((ast::Op::Add, ValueType::Integer, ValueType::String), Box::new(bin_op_add_int_string)),
+
         ((ast::Op::Sub, ValueType::Integer, ValueType::Integer), Box::new(bin_op_sub_int_int)),
         ((ast::Op::Sub, ValueType::Float, ValueType::Integer), Box::new(bin_op_sub_float_int)),
         ((ast::Op::Sub, ValueType::Float, ValueType::Float), Box::new(bin_op_sub_float_float)),
@@ -149,7 +206,14 @@ pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), Funct
         ((ast::Op::Div, ValueType::Float, ValueType::Float), Box::new(bin_op_div_float_float)),
 
         ((ast::Op::Shl, ValueType::Integer, ValueType::Integer), Box::new(bin_op_shl_int_int)),
-        ((ast::Op::Shl, ValueType::Float, ValueType::Integer), Box::new(bin_op_shl_float_int))]
+        ((ast::Op::Shl, ValueType::Float, ValueType::Integer), Box::new(bin_op_shl_float_int)),
+
+        ((ast::Op::Shr, ValueType::Integer, ValueType::Integer), Box::new(bin_op_shr_int_int)),
+        ((ast::Op::Shr, ValueType::Float, ValueType::Integer), Box::new(bin_op_shr_float_int))]
+}
+
+fn bin_op_gt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_integer() >= args[1].as_integer())
 }
 
 fn bin_op_lt_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -186,6 +250,12 @@ fn bin_op_add_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
 
 fn bin_op_add_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Float(args[0].as_float() + args[1].as_float())
+}
+
+fn bin_op_add_int_string(_: &mut Context, args: &Vec<Value>) -> Value {
+    println!("WARNING: Int + String called; rhs was returned");
+
+    args[1].clone()
 }
 
 fn bin_op_sub_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -230,4 +300,12 @@ fn bin_op_shl_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
 
 fn bin_op_shl_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Integer((args[0].as_float() as i32) << args[1].as_integer())
+}
+
+fn bin_op_shr_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Integer(args[0].as_integer() >> args[1].as_integer())
+}
+
+fn bin_op_shr_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Integer((args[0].as_float() as i32) >> args[1].as_integer())
 }

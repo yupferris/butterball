@@ -147,10 +147,10 @@ pub struct Array {
 impl Array {
     pub fn index(&mut self, dimensions: &Vec<Value>) -> &mut Value {
         let mut index = 0;
-        let mut dim_multiplier = 0;
+        let mut dim_multiplier = 1;
         for i in (0..dimensions.len()).rev() {
             let current_dimension_size = self.dimensions[i];
-            index += dimensions[i].as_integer() + dim_multiplier * current_dimension_size;
+            index += dimensions[i].as_integer() * dim_multiplier;
             dim_multiplier *= current_dimension_size;
         }
         &mut self.values[index as usize]
