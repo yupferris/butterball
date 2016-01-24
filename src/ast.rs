@@ -12,6 +12,7 @@ pub enum Node {
     ConstDecl(ConstDecl),
     FunctionDecl(FunctionDecl),
     Statement(Statement),
+    Label(String),
     End
 }
 

@@ -79,6 +79,10 @@ named!(node<ast::Node>,
                    statement: statement,
                    || ast::Node::Statement(statement)) |
                chain!(
+                   tag!(".") ~
+                       name: identifier,
+                   || ast::Node::Label(name)) |
+               chain!(
                    tag!("End"),
                    || ast::Node::End))));
 
