@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate nom;
 
+extern crate minifb;
+extern crate time;
+
 mod ast;
 mod parser;
 mod interpreter;
