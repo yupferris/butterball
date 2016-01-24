@@ -142,6 +142,7 @@ pub enum Statement {
     For(For),
     Select(Select),
     Restore(String),
+    Read(LValue),
     Assignment(Assignment),
     FunctionCall(FunctionCall)
 }
