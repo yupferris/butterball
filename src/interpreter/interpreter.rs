@@ -43,8 +43,8 @@ fn eval_expr(context: &mut Context, expr: &Box<ast::Expr>) -> Value {
         ast::Expr::StringLiteral(ref value) => Value::String(value.clone()),
         ast::Expr::FunctionCall(ref function_call) => eval_function_call(context, function_call),
         ast::Expr::VariableRef(ref variable_ref) => eval_variable_ref(context, variable_ref),
-        ast::Expr::BinOp(ref bin_op) => eval_bin_op(context, bin_op),
-        _ => panic!("Unrecognized expression: {:?}", expr)
+        ast::Expr::UnOp(ref un_op) => eval_un_op(context, un_op),
+        ast::Expr::BinOp(ref bin_op) => eval_bin_op(context, bin_op)
     }
 }
 
@@ -93,6 +93,18 @@ fn eval_variable_ref(context: &mut Context, variable_ref: &ast::VariableRef) -> 
     context.resolve_variable(&variable_ref.name).as_variable().value.clone()
 }
 
+fn eval_un_op(context: &mut Context, un_op: &ast::UnOp) -> Value {
+    let arg = eval_expr(context, &un_op.expr);
+
+    let key = (un_op.op.clone(), arg.get_type());
+    if let Some(ref un_op_impl) = context.un_op_function_table.get(&key) {
+        let context = unsafe { &mut *(context as *const Context as *mut Context) }; // Fuck you, borrow checker!
+        un_op_impl(context, &vec![arg])
+    } else {
+        panic!("Unrecognized or unsupported un op for key: {:?}", key)
+    }
+}
+
 fn eval_bin_op(context: &mut Context, bin_op: &ast::BinOp) -> Value {
     let lhs = eval_expr(context, &bin_op.lhs);
     let rhs = eval_expr(context, &bin_op.rhs);
@@ -102,7 +114,7 @@ fn eval_bin_op(context: &mut Context, bin_op: &ast::BinOp) -> Value {
         let context = unsafe { &mut *(context as *const Context as *mut Context) }; // Fuck you, borrow checker!
         bin_op_impl(context, &vec![lhs, rhs])
     } else {
-        panic!("Unrecognized or unsupported bin for key: {:?}", key)
+        panic!("Unrecognized or unsupported bin op for key: {:?}", key)
     }
 }
 
@@ -117,7 +129,7 @@ fn interpret_statement(context: &mut Context, statement: &ast::Statement) {
 }
 
 fn interpret_array_decl(context: &mut Context, array_decl: &ast::ArrayDecl) {
-    let dimensions = array_decl.dimensions.iter().map(|expr| eval_expr(context, expr).as_integer()).collect::<Vec<_>>();
+    let dimensions = array_decl.dimensions.iter().map(|expr| eval_expr(context, expr).as_integer() + 1).collect::<Vec<_>>();
     let size = dimensions.iter().fold(0, |acc, x| acc + x) as usize;
     let mut values = Vec::with_capacity(size);
     for _ in 0..size {
@@ -128,7 +140,15 @@ fn interpret_array_decl(context: &mut Context, array_decl: &ast::ArrayDecl) {
         dimensions: dimensions,
         values: values
     };
-    // TODO: Make sure to resize an array if it exists already
+
+    if let Some(variable_table_entry) = context.try_resolve_variable(&array_decl.name) {
+        if let &mut VariableTableEntry::Variable(_) = variable_table_entry {
+            panic!("Variable was not an array: {}", array_decl.name)
+        }
+        *variable_table_entry = VariableTableEntry::Array(array);
+        return;
+    }
+
     context.add_variable(array_decl.name.clone(), VariableTableEntry::Array(array));
 }
 
@@ -138,16 +158,7 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
     interpret_assignment(context, &for_statement.initialization);
 
     let index_l_value = &for_statement.initialization.l_value;
-    let to = eval_expr(context, &for_statement.to);
     let step = for_statement.step.clone().map_or(Value::Integer(1), |expr| eval_expr(context, &expr));
-    let conditional = Box::new(ast::Expr::BinOp(ast::BinOp {
-        op: ast::Op::Eq,
-        lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
-            name: index_l_value.as_variable_ref().name, // lol
-            type_specifier: None
-        })),
-        rhs: to.to_expr()
-    }));
     let increment = ast::Statement::Assignment(ast::Assignment {
         l_value: index_l_value.clone(),
         expr: Box::new(ast::Expr::BinOp(ast::BinOp {
@@ -158,6 +169,15 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
     });
 
     loop {
+        let to = eval_expr(context, &for_statement.to);
+        let conditional = Box::new(ast::Expr::BinOp(ast::BinOp {
+            op: ast::Op::Gt,
+            lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
+                name: index_l_value.as_variable_ref().name, // lol
+                type_specifier: None
+            })),
+            rhs: to.to_expr()
+        }));
         if eval_expr(context, &conditional).as_bool() {
             break;
         }
@@ -173,7 +193,16 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
 }
 
 fn interpret_assignment(context: &mut Context, assignment: &ast::Assignment) {
-    let name = &assignment.l_value.as_variable_ref().name; // lol
     let value = eval_expr(context, &assignment.expr);
-    context.add_or_update_variable(name, value);
+    match assignment.l_value {
+        ast::LValue::VariableRef(ref variable_ref) => {
+            let name = &variable_ref.name;
+            context.add_or_update_variable(name, value);
+        },
+        ast::LValue::ArrayElemRef(ref array_elem_ref) => {
+            let name = &array_elem_ref.array_name;
+            let dimensions = array_elem_ref.dimensions.iter().map(|expr| eval_expr(context, &expr)).collect::<Vec<_>>();
+            context.update_array_elem_ref(name, dimensions, value);
+        }
+    }
 }
