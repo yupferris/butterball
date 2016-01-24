@@ -14,7 +14,7 @@ So, that's what this is. Of course, it's one of those "I'm bored on Sunday and w
 - [X] Parser _(minus member accesses and member array element accesses)_
 - [X] Interpreter _(minus the stuff not supported by the parser)_
 
-And by the way, it's currently **SLOOOOOOW**. Seriously, like <1FPS slow. But hey, it's for fun, right?
+And by the way, it's currently **SLOOOOOOW**. Seriously, like <1FPS slow. And there's bugs. And the code's a mess. But hey, I did it super quickly, and it's for fun, right?
 
 ## Screenshot(s)
 ![screen shot 2016-01-24 at 9 34 24 am](https://cloud.githubusercontent.com/assets/3166056/12537811/d80a303e-c27d-11e5-8c4c-0c3b365b9ecd.png)
