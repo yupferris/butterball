@@ -1,5 +1,6 @@
 use super::super::minifb::{Window, Scale};
 use super::super::time;
+use super::super::ast;
 use super::context::*;
 
 pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
@@ -59,6 +60,32 @@ fn hide_pointer(_context: &mut Context, _args: &Vec<Value>) -> Value {
     Value::Integer(0)
 }
 
-fn millisecs(_context: &mut Context, _args: &Vec<Value>) -> Value {
+fn millisecs(_: &mut Context, _: &Vec<Value>) -> Value {
     Value::Integer((time::precise_time_ns() / 1000000) as i32)
+}
+
+pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), FunctionImpl)> {
+    vec![
+        ((ast::Op::Eq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_eq_int_int)),
+
+        ((ast::Op::Mul, ValueType::Integer, ValueType::Integer), Box::new(bin_op_mul_int_int)),
+        ((ast::Op::Mul, ValueType::Integer, ValueType::Float), Box::new(bin_op_mul_int_float)),
+
+        ((ast::Op::Div, ValueType::Integer, ValueType::Integer), Box::new(bin_op_div_int_int))]
+}
+
+fn bin_op_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_integer() == args[1].as_integer())
+}
+
+fn bin_op_mul_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Integer(args[0].as_integer() * args[1].as_integer())
+}
+
+fn bin_op_mul_int_float(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float((args[0].as_integer() as f32) * args[1].as_float())
+}
+
+fn bin_op_div_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Integer(args[0].as_integer() / args[1].as_integer())
 }

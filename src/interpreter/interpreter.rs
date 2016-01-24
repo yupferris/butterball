@@ -69,7 +69,7 @@ fn eval_function_call(context: &mut Context, function_call: &ast::FunctionCall) 
 }
 
 fn eval_function_decl(context: &mut Context, function_decl: &ast::FunctionDecl, args: Vec<Value>) -> Value {
-    context.push_variable_frame();
+    context.push_scope();
 
     for i in 0..args.len() {
         let name = &function_decl.args[i].name;
@@ -84,7 +84,7 @@ fn eval_function_decl(context: &mut Context, function_decl: &ast::FunctionDecl, 
         interpret_statement(context, statement);
     }
 
-    context.pop_variable_frame();
+    context.pop_scope();
 
     Value::Unit // TODO: Proper function return values
 }
@@ -96,20 +96,21 @@ fn eval_variable_ref(context: &mut Context, variable_ref: &ast::VariableRef) -> 
 fn eval_bin_op(context: &mut Context, bin_op: &ast::BinOp) -> Value {
     let lhs = eval_expr(context, &bin_op.lhs);
     let rhs = eval_expr(context, &bin_op.rhs);
-    match bin_op.op {
-        ast::Op::Div =>
-            if lhs.is_integer() && rhs.is_integer() {
-                Value::Integer(lhs.as_integer() / rhs.as_integer())
-            } else {
-                panic!("Invalid values for divide: {:?}, {:?}", lhs, rhs)
-            },
-        _ => panic!("Unrecognized or unsupported bin op: {:?}", bin_op.op)
+
+    let key = (bin_op.op.clone(), lhs.get_type(), rhs.get_type());
+    if let Some(ref bin_op_impl) = context.bin_op_function_table.get(&key) {
+        let context = unsafe { &mut *(context as *const Context as *mut Context) }; // Fuck you, borrow checker!
+        bin_op_impl(context, &vec![lhs, rhs])
+    } else {
+        panic!("Unrecognized or unsupported bin for key: {:?}", key)
     }
 }
 
 fn interpret_statement(context: &mut Context, statement: &ast::Statement) {
     match statement {
         &ast::Statement::ArrayDecl(ref array_decl) => interpret_array_decl(context, array_decl),
+        &ast::Statement::For(ref for_statement) => interpret_for(context, for_statement),
+        &ast::Statement::Assignment(ref assignment) => interpret_assignment(context, assignment),
         &ast::Statement::FunctionCall(ref function_call) => { eval_function_call(context, function_call); },
         _ => panic!("Unrecognized statement: {:?}", statement)
     }
@@ -129,4 +130,50 @@ fn interpret_array_decl(context: &mut Context, array_decl: &ast::ArrayDecl) {
     };
     // TODO: Make sure to resize an array if it exists already
     context.add_variable(array_decl.name.clone(), VariableTableEntry::Array(array));
+}
+
+fn interpret_for(context: &mut Context, for_statement: &ast::For) {
+    context.push_scope();
+
+    interpret_assignment(context, &for_statement.initialization);
+
+    let index_l_value = &for_statement.initialization.l_value;
+    let to = eval_expr(context, &for_statement.to);
+    let step = for_statement.step.clone().map_or(Value::Integer(1), |expr| eval_expr(context, &expr));
+    let conditional = Box::new(ast::Expr::BinOp(ast::BinOp {
+        op: ast::Op::Eq,
+        lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
+            name: index_l_value.as_variable_ref().name, // lol
+            type_specifier: None
+        })),
+        rhs: to.to_expr()
+    }));
+    let increment = ast::Statement::Assignment(ast::Assignment {
+        l_value: index_l_value.clone(),
+        expr: Box::new(ast::Expr::BinOp(ast::BinOp {
+            op: ast::Op::Add,
+            lhs: Box::new(ast::Expr::VariableRef(index_l_value.as_variable_ref())), // lol
+            rhs: step.to_expr()
+        }))
+    });
+
+    loop {
+        if eval_expr(context, &conditional).as_bool() {
+            break;
+        }
+
+        for statement in for_statement.body.iter() {
+            interpret_statement(context, statement);
+        }
+
+        interpret_statement(context, &increment);
+    }
+
+    context.pop_scope();
+}
+
+fn interpret_assignment(context: &mut Context, assignment: &ast::Assignment) {
+    let name = &assignment.l_value.as_variable_ref().name; // lol
+    let value = eval_expr(context, &assignment.expr);
+    context.add_or_update_variable(name, value);
 }
