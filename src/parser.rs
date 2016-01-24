@@ -410,7 +410,7 @@ named!(float_literal<f32>,
 named!(integer_literal<i32>,
        map_res!(
            map_res!(
-               recognize!(preceded!(opt!(tag!("-")), digit)),
+               digit,
                str::from_utf8),
            FromStr::from_str));
 
@@ -620,8 +620,8 @@ named!(for_statement<ast::For>,
                        tag!("Step") ~
                            space ~
                            // TODO: Probably too permissive
-                           value: atomic_value,
-                       || value)) ~
+                           expr: expr,
+                       || expr)) ~
                body: statement_list ~
                opt!(whitespace) ~
                tag!("Next"),
