@@ -11,8 +11,11 @@ Recently, I rediscovered the source to this demo (and some other small demos/eff
 So, that's what this is. Of course, it's one of those "I'm bored on Sunday and want to start a new project" kind of things, so I don't expect to ever finish it or anything. But it's fun to play with this old stuff for sure :)
 
 ## Status
-- [X] Parser _(minus member accesses and member array element accesses)_
-- [X] Interpreter _(minus the stuff not supported by the parser)_
+- [X] Parser
+- [X] Interpreter
+- [ ] Optimization and Cleanup
+
+_Note that "complete" and "incomplete" are pretty loosely-defined here; see the issues for more info :)_
 
 And by the way, it's currently **SLOOOOOOW**. Seriously, like <1FPS slow. And there's bugs. And the code's a mess. But hey, I did it super quickly, and it's for fun, right?
 
