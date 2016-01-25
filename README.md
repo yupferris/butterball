@@ -1,4 +1,4 @@
-# butterball
+# butterball [![Build Status](https://travis-ci.org/yupferris/butterball.svg)](https://travis-ci.org/yupferris/butterball)
 
 Just a little trip down memory lane :)
 
