@@ -10,6 +10,8 @@ pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
     vec![
         ("Float", Box::new(float_cast)),
 
+        ("Abs", Box::new(abs)),
+
         ("Sin", Box::new(sin)),
         ("Cos", Box::new(cos)),
 
@@ -51,6 +53,10 @@ fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
         &Value::Float(x) => x,
         _ => panic!("Unable to cast value to float: {:?}", arg)
     })
+}
+
+fn abs(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Float(degrees_to_radians(args[0].as_float()).abs())
 }
 
 fn sin(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -254,6 +260,7 @@ pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), Funct
         ((ast::Op::LtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_lt_eq_int_int)),
 
         ((ast::Op::GtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_eq_int_int)),
+        ((ast::Op::GtEq, ValueType::Float, ValueType::Integer), Box::new(bin_op_gt_eq_float_int)),
 
         ((ast::Op::Lt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_lt_int_int)),
         ((ast::Op::Lt, ValueType::Float, ValueType::Integer), Box::new(bin_op_lt_float_int)),
@@ -297,6 +304,10 @@ fn bin_op_lt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
 
 fn bin_op_gt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Bool(args[0].as_integer() >= args[1].as_integer())
+}
+
+fn bin_op_gt_eq_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_float() >= (args[1].as_integer() as f32))
 }
 
 fn bin_op_lt_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
