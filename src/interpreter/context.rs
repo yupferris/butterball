@@ -179,14 +179,14 @@ impl Value {
     pub fn as_integer(&self) -> i32 {
         match self {
             &Value::Integer(value) => value,
-            &Value::Float(value) => value as i32,
+            &Value::Float(value) => value as i32, // TODO: Remove
             _ => panic!("Value was not an integer: {:?}", self)
         }
     }
 
     pub fn as_float(&self) -> f32 {
         match self {
-            &Value::Integer(value) => value as f32,
+            &Value::Integer(value) => value as f32, // TODO: Remove
             &Value::Float(value) => value,
             _ => panic!("Value was not an float: {:?}", self)
         }
