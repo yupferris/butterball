@@ -1,4 +1,5 @@
 use super::super::ast;
+use super::value::*;
 use super::context::*;
 
 pub fn interpret(ast: &ast::Root) {
@@ -259,24 +260,25 @@ fn interpret_read(context: &mut Context, l_value: &ast::LValue) {
             context.data_table.len(),
             context.data_table);
     }
-    let expr = context.data_table[context.program_state.data_pointer].to_expr();
+    let value = context.data_table[context.program_state.data_pointer].clone();
     context.program_state.data_pointer += 1;
-    interpret_assignment(context, &ast::Assignment {
-        l_value: l_value.clone(),
-        expr: expr
-    });
+    perform_assignment(context, l_value, value);
 }
 
-fn interpret_assignment(context: &mut Context, assignment: &ast::Assignment) {
-    let value = eval_expr(context, &assignment.expr);
-    match assignment.l_value {
-        ast::LValue::VariableRef(ref variable_ref) => {
+fn perform_assignment(context: &mut Context, l_value: &ast::LValue, value: Value) {
+    match l_value {
+        &ast::LValue::VariableRef(ref variable_ref) => {
             context.add_or_update_variable(&variable_ref.name, value, (&variable_ref.type_specifier).into());
         },
-        ast::LValue::ArrayElemRef(ref array_elem_ref) => {
+        &ast::LValue::ArrayElemRef(ref array_elem_ref) => {
             let name = &array_elem_ref.array_name;
             let dimensions = array_elem_ref.dimensions.iter().map(|expr| eval_expr(context, &expr)).collect::<Vec<_>>();
             context.update_array_elem_ref(name, dimensions, value);
         }
     }
+}
+
+fn interpret_assignment(context: &mut Context, assignment: &ast::Assignment) {
+    let value = eval_expr(context, &assignment.expr);
+    perform_assignment(context, &assignment.l_value, value);
 }
