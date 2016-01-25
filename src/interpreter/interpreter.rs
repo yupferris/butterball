@@ -205,6 +205,14 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
     interpret_assignment(context, &for_statement.initialization);
 
     let index_l_value = &for_statement.initialization.l_value;
+    let conditional = Box::new(ast::Expr::BinOp(ast::BinOp {
+        op: ast::Op::Gt,
+        lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
+            name: index_l_value.as_variable_ref().name, // lol
+            type_specifier: None
+        })),
+        rhs: for_statement.to.clone()
+    }));
     let step = for_statement.step.clone().map_or(Value::Integer(1), |expr| eval_expr(context, &expr));
     let increment = ast::Statement::Assignment(ast::Assignment {
         l_value: index_l_value.clone(),
@@ -215,27 +223,10 @@ fn interpret_for(context: &mut Context, for_statement: &ast::For) {
         }))
     });
 
-    loop {
-        let to = eval_expr(context, &for_statement.to);
-        let conditional = Box::new(ast::Expr::BinOp(ast::BinOp {
-            op: ast::Op::Gt,
-            lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
-                name: index_l_value.as_variable_ref().name, // lol
-                type_specifier: None
-            })),
-            rhs: to.to_expr()
-        }));
-        if eval_expr(context, &conditional).as_bool() {
-            break;
-        }
-
-        context.push_scope();
-
+    while !eval_expr(context, &conditional).as_bool() {
         for statement in for_statement.body.iter() {
             interpret_statement(context, statement);
         }
-
-        context.pop_scope();
 
         interpret_statement(context, &increment);
     }
