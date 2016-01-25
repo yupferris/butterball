@@ -32,8 +32,8 @@ impl State {
 
         State {
             function_table: build_function_table(root),
-            un_op_function_table: build_un_op_function_table(),
-            bin_op_function_table: build_bin_op_function_table(),
+            un_op_function_table: build_un_op_impls_table().into_iter().collect::<HashMap<_, _>>(),
+            bin_op_function_table: build_bin_op_impls_table().into_iter().collect::<HashMap<_, _>>(),
 
             data_table: data_table,
             data_labels: data_labels,
@@ -213,14 +213,6 @@ fn build_function_table(root: &ast::Root) -> FunctionTable {
     }
 
     ret
-}
-
-fn build_un_op_function_table() -> UnOpFunctionTable {
-    build_un_op_impls_table().into_iter().collect::<HashMap<_, _>>()
-}
-
-fn build_bin_op_function_table() -> BinOpFunctionTable {
-    build_bin_op_impls_table().into_iter().collect::<HashMap<_, _>>()
 }
 
 // Returns true if we should end, false otherwise

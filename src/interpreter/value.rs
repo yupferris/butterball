@@ -46,7 +46,7 @@ impl Value {
     pub fn as_float(&self) -> f32 {
         match self {
             &Value::Float(value) => value,
-            _ => panic!("Value was not an float: {:?}", self)
+            _ => panic!("Value was not a float: {:?}", self)
         }
     }
 

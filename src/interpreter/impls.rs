@@ -58,12 +58,13 @@ fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
     })
 }
 
+// TODO: Support type overloads
 fn abs(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Float(args[0].as_float().abs())
 }
 
 fn sin(_: &mut Context, args: &Vec<Value>) -> Value {
-    Value::Float(degrees_to_radians(args[0].as_float()).sin())
+    Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).sin())
 }
 
 fn degrees_to_radians(degrees: f32) -> f32 {
@@ -71,7 +72,7 @@ fn degrees_to_radians(degrees: f32) -> f32 {
 }
 
 fn cos(_: &mut Context, args: &Vec<Value>) -> Value {
-    Value::Float(degrees_to_radians(args[0].as_float()).cos())
+    Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).cos())
 }
 
 fn app_title(context: &mut Context, args: &Vec<Value>) -> Value {
