@@ -22,20 +22,28 @@ fn interpret_node(context: &mut Context, node: &ast::Node) -> bool {
 }
 
 fn interpret_variable_decl(context: &mut Context, variable_decl: &ast::VariableDecl) {
-    let value = variable_decl.init_expr.clone().map_or(Value::default(&variable_decl.type_specifier), |expr| eval_expr(context, &expr));
+    let value_type = (&variable_decl.type_specifier).into();
+    let value = match &variable_decl.init_expr {
+        &Some(ref expr) => eval_expr(context, expr).cast_to(&value_type),
+        _ => Value::default(&value_type)
+    };
     context.add_variable(variable_decl.name.clone(), VariableTableEntry::Variable(Variable {
         name: variable_decl.name.clone(),
         is_const: false,
-        value: value
+        value: value,
+        value_type: value_type
     }));
 }
 
+// TODO: Can probably reuse more code between this and interpret_variable_decl
 fn interpret_const_decl(context: &mut Context, const_decl: &ast::ConstDecl) {
-    let value = eval_expr(context, &const_decl.init_expr);
+    let value_type = (&const_decl.type_specifier).into();
+    let value = eval_expr(context, &const_decl.init_expr).cast_to(&value_type);
     context.add_variable(const_decl.name.clone(), VariableTableEntry::Variable(Variable {
         name: const_decl.name.clone(),
         is_const: true,
-        value: value
+        value: value,
+        value_type: value_type
     }));
 }
 
@@ -83,11 +91,14 @@ fn eval_function_decl(context: &mut Context, function_decl: &ast::FunctionDecl, 
     context.push_scope();
 
     for i in 0..args.len() {
-        let name = &function_decl.args[i].name;
+        let function_decl_arg = &function_decl.args[i];
+        let name = &function_decl_arg.name;
+        let value_type = (&function_decl_arg.type_specifier).into();
         context.add_variable(name.clone(), VariableTableEntry::Variable(Variable {
             name: name.clone(),
             is_const: false,
-            value: args[i].clone()
+            value: args[i].cast_to(&value_type),
+            value_type: value_type
         }));
     }
 
@@ -144,16 +155,18 @@ fn interpret_statement(context: &mut Context, statement: &ast::Statement) {
 }
 
 fn interpret_array_decl(context: &mut Context, array_decl: &ast::ArrayDecl) {
-    let dimensions = array_decl.dimensions.iter().map(|expr| eval_expr(context, expr).as_integer() + 1).collect::<Vec<_>>();
+    let dimensions = array_decl.dimensions.iter().map(|expr| eval_expr(context, expr).cast_to_integer().as_integer() + 1).collect::<Vec<_>>();
     let size = dimensions.iter().fold(1, |acc, x| acc * x) as usize;
+    let value_type = (&array_decl.type_specifier).into();
     let mut values = Vec::with_capacity(size);
     for _ in 0..size {
-        values.push(Value::default(&array_decl.type_specifier));
+        values.push(Value::default(&value_type));
     }
     let array = Array {
         name: array_decl.name.clone(),
         dimensions: dimensions,
-        values: values
+        values: values,
+        value_type: value_type
     };
 
     if let Some(variable_table_entry) = context.try_resolve_variable(&array_decl.name) {
@@ -258,8 +271,7 @@ fn interpret_assignment(context: &mut Context, assignment: &ast::Assignment) {
     let value = eval_expr(context, &assignment.expr);
     match assignment.l_value {
         ast::LValue::VariableRef(ref variable_ref) => {
-            let name = &variable_ref.name;
-            context.add_or_update_variable(name, value);
+            context.add_or_update_variable(&variable_ref.name, value, (&variable_ref.type_specifier).into());
         },
         ast::LValue::ArrayElemRef(ref array_elem_ref) => {
             let name = &array_elem_ref.array_name;
