@@ -206,8 +206,10 @@ fn mouse_y(context: &mut Context, _args: &Vec<Value>) -> Value {
     Value::Integer(context.program_state.height / 2)
 }
 
-fn cls(_context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: Cls called but not yet implemented");
+fn cls(context: &mut Context, _: &Vec<Value>) -> Value {
+    for pixel in context.program_state.back_buffer.iter_mut() {
+        *pixel = 0;
+    }
 
     Value::Unit
 }
@@ -215,6 +217,7 @@ fn cls(_context: &mut Context, _args: &Vec<Value>) -> Value {
 fn flip(context: &mut Context, _: &Vec<Value>) -> Value {
     println!("WARNING: Flip argument ignored");
 
+    // TODO: It'd be more correct to actually swap between two buffers
     let buffer = &context.program_state.back_buffer;
     if let Some(ref mut window) = context.program_state.window {
         window.update(buffer);
