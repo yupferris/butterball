@@ -189,9 +189,9 @@ fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 fn mouse_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: MouseDown called but not yet implemented; defaulting to True");
+    println!("WARNING: MouseDown called but not yet implemented; defaulting to False");
 
-    Value::Bool(true)
+    Value::Bool(false)
 }
 
 fn mouse_x(context: &mut Context, _args: &Vec<Value>) -> Value {
@@ -232,8 +232,8 @@ fn color(_: &mut Context, _: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn text(_: &mut Context, _: &Vec<Value>) -> Value {
-    println!("Text called (and ignored)");
+fn text(_: &mut Context, args: &Vec<Value>) -> Value {
+    println!("Text called; drawing was ignored: {}, {}, {:?}", args[0].as_integer(), args[1].as_integer(), args[2].as_string());
 
     Value::Unit
 }
@@ -354,9 +354,7 @@ fn bin_op_add_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 fn bin_op_add_int_string(_: &mut Context, args: &Vec<Value>) -> Value {
-    println!("WARNING: Int + String called; rhs was returned");
-
-    args[1].clone()
+    Value::String(format!("{}{}", args[0].as_integer(), args[1].as_string()))
 }
 
 fn bin_op_sub_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
