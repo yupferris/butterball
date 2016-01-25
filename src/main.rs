@@ -33,6 +33,8 @@ fn compile() -> Result<(), String> {
     println!("Interpreting...");
     interpreter::interpret(&ast);
 
+    println!("Finished!");
+
     Ok(())
 }
 

@@ -4,17 +4,21 @@ use super::context::*;
 pub fn interpret(ast: &ast::Root) {
     let mut context = Context::new(ast);
     for node in ast.nodes.iter() {
-        interpret_node(&mut context, node);
+        if interpret_node(&mut context, node) { break; }
     }
 }
 
-fn interpret_node(context: &mut Context, node: &ast::Node) {
+// Returns true if we should end, false otherwise
+// TODO: Better way to do that?
+fn interpret_node(context: &mut Context, node: &ast::Node) -> bool {
     match node {
         &ast::Node::GlobalVariableDecl(ref variable_decl) => interpret_variable_decl(context, variable_decl),
         &ast::Node::ConstDecl(ref const_decl) => interpret_const_decl(context, const_decl),
         &ast::Node::Statement(ref statement) => interpret_statement(context, statement),
+        &ast::Node::End => { return true; },
         _ => panic!("Unrecognized node: {:?}", node)
     }
+    false
 }
 
 fn interpret_variable_decl(context: &mut Context, variable_decl: &ast::VariableDecl) {

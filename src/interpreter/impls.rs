@@ -1,5 +1,6 @@
 use super::super::minifb::{Window, Scale, Key};
 use super::super::time;
+
 use super::super::ast;
 use super::context::*;
 
@@ -25,10 +26,16 @@ pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
 
         ("HidePointer", Box::new(hide_pointer)),
 
-        ("MilliSecs", Box::new(millisecs)),
+        ("SeedRnd", Box::new(seed_rnd)),
+        ("Rand", Box::new(rand)),
+
+        ("MilliSecs", Box::new(milli_secs)),
 
         ("KeyDown", Box::new(key_down)),
+
         ("MouseDown", Box::new(mouse_down)),
+        ("MouseX", Box::new(mouse_x)),
+        ("MouseY", Box::new(mouse_y)),
 
         ("Cls", Box::new(cls)),
         ("Flip", Box::new(flip)),
@@ -131,7 +138,32 @@ fn hide_pointer(_context: &mut Context, _args: &Vec<Value>) -> Value {
     Value::Integer(0)
 }
 
-fn millisecs(_: &mut Context, _: &Vec<Value>) -> Value {
+fn seed_rnd(context: &mut Context, args: &Vec<Value>) -> Value {
+    context.program_state.rng_state = 0xffff_ffff_0000_0000 | (args[0].as_integer() as u64);
+
+    Value::Unit
+}
+
+fn rand(context: &mut Context, args: &Vec<Value>) -> Value {
+    // xorshift* prng
+    let mut x = context.program_state.rng_state;
+    x ^= x >> 12;
+    x ^= x >> 25;
+    x ^= x >> 27;
+    x *= 2685821657736338717;
+    context.program_state.rng_state = x;
+
+    let (low, high) = match args.len() {
+        1 => (0, args[0].as_integer()),
+        2 => (args[0].as_integer(), args[1].as_integer()),
+        _ => panic!("Invalid number of arguments to Rand: {}", args.len())
+    };
+    let range = high - low + 1;
+
+    Value::Integer(((x as i32) % range) + low)
+}
+
+fn milli_secs(_: &mut Context, _: &Vec<Value>) -> Value {
     Value::Integer((time::precise_time_ns() / 1000000) as i32)
 }
 
@@ -151,9 +183,21 @@ fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 fn mouse_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: MouseDown called but not yet implemented");
+    println!("WARNING: MouseDown called but not yet implemented; defaulting to True");
 
-    Value::Bool(false)
+    Value::Bool(true)
+}
+
+fn mouse_x(context: &mut Context, _args: &Vec<Value>) -> Value {
+    println!("WARNING: MouseX called but not yet implemented; defaulting to center of screen");
+
+    Value::Integer(context.program_state.width / 2)
+}
+
+fn mouse_y(context: &mut Context, _args: &Vec<Value>) -> Value {
+    println!("WARNING: MouseY called but not yet implemented; defaulting to center of screen");
+
+    Value::Integer(context.program_state.height / 2)
 }
 
 fn cls(_context: &mut Context, _args: &Vec<Value>) -> Value {
@@ -189,11 +233,16 @@ pub fn build_un_op_impls_table() -> Vec<((ast::Op, ValueType), FunctionImpl)> {
     vec![
         ((ast::Op::Not, ValueType::Bool), Box::new(un_op_not_bool)),
 
+        ((ast::Op::Neg, ValueType::Integer), Box::new(un_op_neg_int)),
         ((ast::Op::Neg, ValueType::Float), Box::new(un_op_neg_float))]
 }
 
 fn un_op_not_bool(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Bool(!args[0].as_bool())
+}
+
+fn un_op_neg_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Integer(-args[0].as_integer())
 }
 
 fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -202,8 +251,11 @@ fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
 
 pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), FunctionImpl)> {
     vec![
+        ((ast::Op::LtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_lt_eq_int_int)),
+
         ((ast::Op::GtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_eq_int_int)),
 
+        ((ast::Op::Lt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_lt_int_int)),
         ((ast::Op::Lt, ValueType::Float, ValueType::Integer), Box::new(bin_op_lt_float_int)),
 
         ((ast::Op::Gt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_int_int)),
@@ -239,8 +291,16 @@ pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), Funct
         ((ast::Op::Shr, ValueType::Float, ValueType::Integer), Box::new(bin_op_shr_float_int))]
 }
 
+fn bin_op_lt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_integer() <= args[1].as_integer())
+}
+
 fn bin_op_gt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
     Value::Bool(args[0].as_integer() >= args[1].as_integer())
+}
+
+fn bin_op_lt_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(args[0].as_integer() < args[1].as_integer())
 }
 
 fn bin_op_lt_float_int(_: &mut Context, args: &Vec<Value>) -> Value {

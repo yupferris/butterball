@@ -31,7 +31,7 @@ impl Context {
 
             stack_frames: vec![HashMap::new()],
 
-            program_state: ProgramState::default()
+            program_state: ProgramState::new()
         }
     }
 
