@@ -24,3 +24,6 @@ And by the way, it's currently **SLOOOOOOW**. Seriously, like <1FPS slow. And th
 ![screen shot 2016-01-24 at 9 34 24 am](https://cloud.githubusercontent.com/assets/3166056/12537811/d80a303e-c27d-11e5-8c4c-0c3b365b9ecd.png)
 
 ![screen shot 2016-01-24 at 9 03 19 pm](https://cloud.githubusercontent.com/assets/3166056/12542892/0d90008e-c2de-11e5-964d-b3a32bda8bb5.png)
+
+## License
+This code is licensed under the BSD2 license (see LICENSE).
