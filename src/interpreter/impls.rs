@@ -56,7 +56,7 @@ fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 fn abs(_: &mut Context, args: &Vec<Value>) -> Value {
-    Value::Float(degrees_to_radians(args[0].as_float()).abs())
+    Value::Float(args[0].as_float().abs())
 }
 
 fn sin(_: &mut Context, args: &Vec<Value>) -> Value {
