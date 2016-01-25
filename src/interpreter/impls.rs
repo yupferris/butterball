@@ -7,6 +7,8 @@ use super::context::*;
 
 use std::f32::consts;
 
+pub type FunctionImpl = Box<Fn(&mut Context, &Vec<Value>) -> Value>;
+
 pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
     vec![
         ("Float", Box::new(float_cast)),
@@ -73,8 +75,8 @@ fn cos(_: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 fn app_title(context: &mut Context, args: &Vec<Value>) -> Value {
-    context.program_state.app_title = args[0].as_string();
-    println!("New app title: \"{}\"", context.program_state.app_title);
+    context.app_title = args[0].as_string();
+    println!("New app title: \"{}\"", context.app_title);
 
     Value::Unit
 }
@@ -91,16 +93,16 @@ fn graphics(context: &mut Context, args: &Vec<Value>) -> Value {
         bits,
         window_mode);
 
-    context.program_state.window =
+    context.window =
         Some(Window::new(
-            &context.program_state.app_title,
+            &context.app_title,
             width as usize,
             height as usize,
             Scale::X2).unwrap());
 
-    context.program_state.width = width;
-    context.program_state.height = height;
-    context.program_state.back_buffer = vec![0; (width * height) as usize];
+    context.width = width;
+    context.height = height;
+    context.back_buffer = vec![0; (width * height) as usize];
 
     Value::Unit
 }
@@ -128,7 +130,7 @@ fn write_pixel_fast(context: &mut Context, args: &Vec<Value>) -> Value {
     let y = args[1].as_integer();
     let color = args[2].as_integer() as u32;
 
-    context.program_state.back_buffer[(y * context.program_state.width + x) as usize] = color;
+    context.back_buffer[(y * context.width + x) as usize] = color;
 
     Value::Unit
 }
@@ -146,19 +148,19 @@ fn hide_pointer(_context: &mut Context, _args: &Vec<Value>) -> Value {
 }
 
 fn seed_rnd(context: &mut Context, args: &Vec<Value>) -> Value {
-    context.program_state.rng_state = 0xffff_ffff_0000_0000 | (args[0].as_integer() as u64);
+    context.rng_state = 0xffff_ffff_0000_0000 | (args[0].as_integer() as u64);
 
     Value::Unit
 }
 
 fn rand(context: &mut Context, args: &Vec<Value>) -> Value {
     // xorshift* prng
-    let mut x = context.program_state.rng_state;
+    let mut x = context.rng_state;
     x ^= x >> 12;
     x ^= x >> 25;
     x ^= x >> 27;
     x *= 2685821657736338717;
-    context.program_state.rng_state = x;
+    context.rng_state = x;
 
     let (low, high) = match args.len() {
         1 => (0, args[0].as_integer()),
@@ -175,7 +177,7 @@ fn milli_secs(_: &mut Context, _: &Vec<Value>) -> Value {
 }
 
 fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
-    if let Some(ref mut window) = context.program_state.window {
+    if let Some(ref mut window) = context.window {
         Value::Bool(window.is_key_down(match args[0].as_integer() {
             1 => Key::Escape,
             _ => {
@@ -198,17 +200,17 @@ fn mouse_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
 fn mouse_x(context: &mut Context, _args: &Vec<Value>) -> Value {
     println!("WARNING: MouseX called but not yet implemented; defaulting to center of screen");
 
-    Value::Integer(context.program_state.width / 2)
+    Value::Integer(context.width / 2)
 }
 
 fn mouse_y(context: &mut Context, _args: &Vec<Value>) -> Value {
     println!("WARNING: MouseY called but not yet implemented; defaulting to center of screen");
 
-    Value::Integer(context.program_state.height / 2)
+    Value::Integer(context.height / 2)
 }
 
 fn cls(context: &mut Context, _: &Vec<Value>) -> Value {
-    for pixel in context.program_state.back_buffer.iter_mut() {
+    for pixel in context.back_buffer.iter_mut() {
         *pixel = 0;
     }
 
@@ -219,8 +221,8 @@ fn flip(context: &mut Context, _: &Vec<Value>) -> Value {
     println!("WARNING: Flip argument ignored");
 
     // TODO: It'd be more correct to actually swap between two buffers
-    let buffer = &context.program_state.back_buffer;
-    if let Some(ref mut window) = context.program_state.window {
+    let buffer = &context.back_buffer;
+    if let Some(ref mut window) = context.window {
         window.update(buffer);
     }
 
