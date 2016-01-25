@@ -1,4 +1,4 @@
-use super::super::minifb::{Window, Scale};
+use super::super::minifb::{Window, Scale, Key};
 use super::super::time;
 use super::super::ast;
 use super::context::*;
@@ -82,7 +82,7 @@ fn graphics(context: &mut Context, args: &Vec<Value>) -> Value {
             &context.program_state.app_title,
             width as usize,
             height as usize,
-            Scale::X1).unwrap());
+            Scale::X2).unwrap());
 
     context.program_state.width = width;
     context.program_state.height = height;
@@ -135,10 +135,19 @@ fn millisecs(_: &mut Context, _: &Vec<Value>) -> Value {
     Value::Integer((time::precise_time_ns() / 1000000) as i32)
 }
 
-fn key_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: KeyDown called but not yet implemented");
+fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
+    if let Some(ref mut window) = context.program_state.window {
+        Value::Bool(window.is_key_down(match args[0].as_integer() {
+            1 => Key::Escape,
+            _ => {
+                println!("WARNING: KeyDown called with unrecognized key; defaulting to Escape");
 
-    Value::Bool(false)
+                Key::Escape
+            }
+        }))
+    } else {
+        panic!("KeyDown called without an open window")
+    }
 }
 
 fn mouse_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
