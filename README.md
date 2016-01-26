@@ -19,6 +19,10 @@ _Note that "complete" and "incomplete" are pretty loosely-defined here; see the 
 
 And by the way, it's currently **SLOOOOOOW**. Seriously, like <1FPS slow. And there's bugs. And the code's a mess. But hey, I did it super quickly, and it's for fun, right?
 
+## Resources
+- [BlitzBasic Full Foundation Tutorial](http://www.bettiesart.com/tc/blitz/)
+- [BlitzBasic Grammar.txt](https://github.com/Leushenko/Taranis/blob/master/BlitzBasic%20grammar.txt) _(incomplete and unofficial, but very helpful nonetheless, especially with operator precedence)_
+
 ## License
 This code is licensed under the BSD2 license (see LICENSE).
 
