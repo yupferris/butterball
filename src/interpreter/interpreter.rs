@@ -386,39 +386,25 @@ fn interpret_array_decl(state: &mut State, array_decl: &ast::ArrayDecl) {
 
 fn interpret_if_statement(state: &mut State, if_statement: &ast::If) {
     if eval_expr(state, &if_statement.condition).as_bool() {
-        state.push_scope();
-
         for statement in if_statement.body.iter() {
             interpret_statement(state, statement);
         }
-
-        state.pop_scope();
     } else if let &Some(ref else_clause) = &if_statement.else_clause {
-        state.push_scope();
-
         for statement in else_clause.body.iter() {
             interpret_statement(state, statement);
         }
-
-        state.pop_scope();
     }
 }
 
 fn interpret_while(state: &mut State, while_statement: &ast::While) {
     while eval_expr(state, &while_statement.condition).as_bool() {
-        state.push_scope();
-
         for statement in while_statement.body.iter() {
             interpret_statement(state, statement);
         }
-
-        state.pop_scope();
     }
 }
 
 fn interpret_for(state: &mut State, for_statement: &ast::For) {
-    state.push_scope();
-
     interpret_assignment(state, &for_statement.initialization);
 
     let index_l_value = &for_statement.initialization.l_value;
@@ -447,8 +433,6 @@ fn interpret_for(state: &mut State, for_statement: &ast::For) {
 
         interpret_statement(state, &increment);
     }
-
-    state.pop_scope();
 }
 
 fn interpret_restore(state: &mut State, label_name: &String) {
