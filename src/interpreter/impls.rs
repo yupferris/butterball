@@ -1,4 +1,4 @@
-use super::super::minifb::{Window, Scale, Key};
+use super::super::minifb::{Window, Scale, Key, MouseButton, MouseMode};
 use super::super::time;
 
 use super::super::ast;
@@ -192,22 +192,40 @@ fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
     }
 }
 
-fn mouse_down(_context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: MouseDown called but not yet implemented; defaulting to False");
-
-    Value::Bool(false)
+fn mouse_down(context: &mut Context, args: &Vec<Value>) -> Value {
+    Value::Bool(if let Some(ref mut window) = context.window {
+        let button_index = args[0].as_integer();
+        window.get_mouse_down(match button_index {
+            1 => MouseButton::Left,
+            2 => MouseButton::Right,
+            3 => MouseButton::Middle,
+            _ => panic!("MouseDown called with unrecognized button index: {}", button_index)
+        })
+    } else {
+        panic!("MouseDown called without an open window")
+    })
 }
 
 fn mouse_x(context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: MouseX called but not yet implemented; defaulting to center of screen");
-
-    Value::Integer(context.width / 2)
+    Value::Integer(if let Some(ref mut window) = context.window {
+        match window.get_mouse_pos(MouseMode::Clamp) {
+            Some((x, _)) => x as i32,
+            _ => unreachable!()
+        }
+    } else {
+        panic!("MouseX called without an open window")
+    })
 }
 
 fn mouse_y(context: &mut Context, _args: &Vec<Value>) -> Value {
-    println!("WARNING: MouseY called but not yet implemented; defaulting to center of screen");
-
-    Value::Integer(context.height / 2)
+    Value::Integer(if let Some(ref mut window) = context.window {
+        match window.get_mouse_pos(MouseMode::Clamp) {
+            Some((_, y)) => y as i32,
+            _ => unreachable!()
+        }
+    } else {
+        panic!("MouseY called without an open window")
+    })
 }
 
 fn cls(context: &mut Context, _: &Vec<Value>) -> Value {
