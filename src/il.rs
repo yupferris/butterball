@@ -49,5 +49,35 @@ pub struct FunctionSignature {
 
 #[derive(Debug)]
 pub enum Statement {
+    For(For)
+}
+
+#[derive(Debug)]
+pub struct For {
+    pub initialization: Assignment,
+    pub condition: Box<Expr>,
+    pub increment: Assignment,
+    pub body: Vec<Statement>
+}
+
+#[derive(Debug)]
+pub struct Assignment {
+    pub l_value: LValue,
+    pub expr: Box<Expr>
+}
+
+#[derive(Debug)]
+pub enum LValue {
+    VariableRef(VariableRef)
+}
+
+#[derive(Debug)]
+pub enum VariableRef {
+    Global(usize),
+    Local(usize)
+}
+
+#[derive(Debug)]
+pub enum Expr {
     Todo
 }

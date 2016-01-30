@@ -153,18 +153,17 @@ fn compile_function(
 
     println!("Compiling function: {}", signature.name);
 
-    let locals = compile_locals(function_decl, &signature, globals_index_map);
+    let mut locals = compile_locals(function_decl, &signature, globals_index_map);
 
     println!("Locals: {:#?}", locals);
 
-    panic!("Dunno how to compile statements just yet :)")
-
-    /*let body = function_decl.body.iter().map(compile_statement).collect::<Vec<_>>();
+    let body = function_decl.body.iter()
+        .map(|statement| compile_statement(statement, globals_index_map, &mut locals)).collect::<Vec<_>>();
 
     il::Function {
         signature: signature,
         body: body
-    }*/
+    }
 }
 
 fn compile_locals(
@@ -235,6 +234,92 @@ fn compile_locals_visit_assignment(
     }
 }
 
-fn compile_statement(statement: &ast::Statement) -> il::Statement {
-    panic!("Unrecognized AST statement: {:#?}", statement)
+fn compile_statement(
+    statement: &ast::Statement,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) -> il::Statement {
+
+    match statement {
+        &ast::Statement::For(ref for_statement) =>
+            il::Statement::For(compile_for_statement(for_statement, globals_index_map, locals)),
+        _ => panic!("Unrecognized AST statement: {:#?}", statement)
+    }
+}
+
+fn compile_for_statement(
+    for_statement: &ast::For,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) -> il::For {
+
+    let index_l_value = &for_statement.initialization.l_value;
+    let index_variable_ref = match index_l_value {
+        &ast::LValue::VariableRef(ref variable_ref) => variable_ref.clone(),
+        _ => panic!("Array element ref used as for loop iterator: {:#?}", index_l_value)
+    };
+    il::For {
+        initialization: compile_assignment(&for_statement.initialization, globals_index_map, locals),
+        condition: compile_expr(&Box::new(ast::Expr::BinOp(ast::BinOp {
+            op: ast::Op::Gt,
+            lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
+                name: index_variable_ref.name.clone(),
+                type_specifier: None
+            })),
+            rhs: for_statement.to.clone()
+        }))),
+        increment: compile_assignment(&ast::Assignment {
+            l_value: index_l_value.clone(),
+            expr: Box::new(ast::Expr::BinOp(ast::BinOp {
+                op: ast::Op::Add,
+                lhs: Box::new(ast::Expr::VariableRef(index_variable_ref.clone())),
+                rhs: for_statement.step.clone().unwrap_or(Box::new(ast::Expr::IntegerLiteral(1)))
+            }))
+        }, globals_index_map, locals),
+        body: for_statement.body.iter()
+            .map(|statement| compile_statement(statement, globals_index_map, locals)).collect::<Vec<_>>()
+    }
+}
+
+fn compile_assignment(
+    assignment: &ast::Assignment,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) -> il::Assignment {
+
+    il::Assignment {
+        l_value: compile_l_value(&assignment.l_value, globals_index_map, locals),
+        expr: compile_expr(&assignment.expr)
+    }
+}
+
+fn compile_l_value(
+    l_value: &ast::LValue,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) -> il::LValue {
+
+    match l_value {
+        &ast::LValue::VariableRef(ref variable_ref) =>
+            il::LValue::VariableRef(resolve_variable_ref(&variable_ref.name, globals_index_map, locals)),
+        _ => panic!("Not sure how to compile array elem ref l-values yet")
+    }
+}
+
+fn resolve_variable_ref(
+    name: &String,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) -> il::VariableRef {
+
+    for (index, local) in locals.iter().enumerate() {
+        if name == local.name() {
+            return il::VariableRef::Local(index);
+        }
+    }
+
+    if let Some(index) = globals_index_map.get(name) {
+        return il::VariableRef::Global(*index);
+    }
+
+    panic!("Unable to resolve variable ref: {}", name);
+}
+
+fn compile_expr(expr: &Box<ast::Expr>) -> Box<il::Expr> {
+    panic!("Not sure how to compile expressions yet")
 }
