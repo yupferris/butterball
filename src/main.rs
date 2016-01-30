@@ -6,6 +6,8 @@ extern crate time;
 
 mod ast;
 mod parser;
+mod il;
+mod compiler;
 mod interpreter;
 
 use std::env;
@@ -30,8 +32,12 @@ fn compile() -> Result<(), String> {
     let ast = try!(parser::parse(&file));
     //println!("AST: {:#?}", ast);
 
-    println!("Interpreting...");
-    interpreter::interpret(&ast);
+    println!("Compiling...");
+    let il = compiler::compile(&ast);
+    println!("IL: {:#?}", il);
+
+    //println!("Interpreting...");
+    //interpreter::interpret(&il);
 
     println!("Finished!");
 
