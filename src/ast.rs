@@ -73,14 +73,14 @@ pub enum Expr {
     IntegerLiteral(i32),
     BoolLiteral(bool),
     StringLiteral(String),
-    FunctionCall(FunctionCall),
+    FunctionCallOrArrayElemRef(FunctionCallOrArrayElemRef),
     VariableRef(VariableRef),
     UnOp(UnOp),
     BinOp(BinOp)
 }
 
 #[derive(Debug, Clone)]
-pub struct FunctionCall {
+pub struct FunctionCallOrArrayElemRef {
     pub function_name: String,
     pub type_specifier: Option<TypeSpecifier>,
     pub arguments: ArgumentList
@@ -147,7 +147,7 @@ pub enum Statement {
     Restore(String),
     Read(LValue),
     Assignment(Assignment),
-    FunctionCall(FunctionCall)
+    FunctionCall(FunctionCallOrArrayElemRef)
 }
 
 #[derive(Debug, Clone)]

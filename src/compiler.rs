@@ -4,9 +4,16 @@ use super::il;
 
 // TODO: Proper error handling?
 pub fn compile(root: &ast::Root) -> il::Program {
+    let globals = compile_globals(root);
+    let function_table = compile_functions(root);
+
+    // We build a main function as an AST node so later we can compile it like any other function declaration.
+    let main_function = build_main_function(root);
+    println!("Main function: {:#?}", main_function);
+
     il::Program {
-        globals: compile_globals(root),
-        function_table: compile_functions(root)
+        globals: globals,
+        function_table: function_table
     }
 }
 
@@ -65,4 +72,29 @@ fn compile_functions(root: &ast::Root) -> Vec<il::Function> {
             _ => None
         })
         .collect::<Vec<_>>()
+}
+
+fn build_main_function(root: &ast::Root) -> ast::FunctionDecl {
+    ast::FunctionDecl {
+        name: String::from("$main"),
+        type_specifier: None,
+        args: Vec::new(),
+        body: root.nodes.iter()
+            .filter_map(|node| match node {
+                &ast::Node::GlobalVariableDecl(ref variable_decl) =>
+                    match &variable_decl.init_expr {
+                        &Some(ref init_expr) =>
+                            Some(ast::Statement::Assignment(ast::Assignment {
+                                l_value: ast::LValue::VariableRef(ast::VariableRef {
+                                    name: variable_decl.name.clone(),
+                                    type_specifier: variable_decl.type_specifier.clone()
+                                }),
+                                expr: init_expr.clone()
+                            })),
+                        _ => None
+                    },
+                _ => None
+            })
+            .collect::<Vec<_>>()
+    }
 }

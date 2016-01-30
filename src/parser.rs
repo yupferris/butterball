@@ -293,7 +293,7 @@ named!(atomic_value<BoxedExpr>,
                                string_literal)) |
                        chain!(
                            function_call_expr: function_call_expr,
-                           || ast::Expr::FunctionCall(
+                           || ast::Expr::FunctionCallOrArrayElemRef(
                                function_call_expr)) |
                        chain!(
                            variable_ref: variable_ref,
@@ -441,7 +441,7 @@ named!(bool_literal<bool>,
            chain!(tag!("True"), || true) |
            chain!(tag!("False"), || false)));
 
-named!(function_call_expr<ast::FunctionCall>,
+named!(function_call_expr<ast::FunctionCallOrArrayElemRef>,
        chain!(
            function_name: identifier ~
                type_specifier: opt!(type_specifier) ~
@@ -449,7 +449,7 @@ named!(function_call_expr<ast::FunctionCall>,
                    tag!("("),
                    separated_list!(tag!(","), expr),
                    tag!(")")),
-           || ast::FunctionCall {
+           || ast::FunctionCallOrArrayElemRef {
                function_name: function_name,
                type_specifier: type_specifier,
                arguments: arguments
@@ -719,7 +719,7 @@ named!(array_elem_ref<ast::ArrayElemRef>,
                dimensions: dimensions
            }));
 
-named!(function_call_statement<ast::FunctionCall>,
+named!(function_call_statement<ast::FunctionCallOrArrayElemRef>,
        chain!(
            function_name: identifier ~
                type_specifier: opt!(type_specifier) ~
@@ -731,7 +731,7 @@ named!(function_call_statement<ast::FunctionCall>,
                            tag!(")")) |
                        separated_nonempty_list!(
                            tag!(","), expr))),
-           || ast::FunctionCall {
+           || ast::FunctionCallOrArrayElemRef {
                function_name: function_name,
                type_specifier: type_specifier,
                arguments: arguments.unwrap_or(Vec::new())
