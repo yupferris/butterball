@@ -6,9 +6,10 @@ extern crate time;
 
 mod ast;
 mod parser;
+mod value;
 mod il;
 mod compiler;
-mod interpreter;
+//mod interpreter;
 
 use std::env;
 use std::io;

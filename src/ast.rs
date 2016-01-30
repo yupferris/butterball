@@ -195,6 +195,7 @@ pub enum LValue {
     ArrayElemRef(ArrayElemRef)
 }
 
+// TODO: Remove
 impl LValue {
     pub fn as_variable_ref(&self) -> VariableRef {
         match self {
