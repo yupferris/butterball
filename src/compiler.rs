@@ -8,8 +8,8 @@ pub fn compile(root: &ast::Root) -> il::Program {
     let function_table = compile_functions(root);
 
     // We build a main function as an AST node so later we can compile it like any other function declaration.
-    let main_function = build_main_function(root);
-    println!("Main function: {:#?}", main_function);
+    let main_function_ast = build_main_function_ast(root);
+    println!("Main function: {:#?}", main_function_ast);
 
     il::Program {
         globals: globals,
@@ -74,7 +74,7 @@ fn compile_functions(root: &ast::Root) -> Vec<il::Function> {
         .collect::<Vec<_>>()
 }
 
-fn build_main_function(root: &ast::Root) -> ast::FunctionDecl {
+fn build_main_function_ast(root: &ast::Root) -> ast::FunctionDecl {
     ast::FunctionDecl {
         name: String::from("$main"),
         type_specifier: None,
@@ -93,6 +93,16 @@ fn build_main_function(root: &ast::Root) -> ast::FunctionDecl {
                             })),
                         _ => None
                     },
+                &ast::Node::ConstDecl(ref const_decl) =>
+                    Some(ast::Statement::Assignment(ast::Assignment {
+                        l_value: ast::LValue::VariableRef(ast::VariableRef {
+                            name: const_decl.name.clone(),
+                            type_specifier: const_decl.type_specifier.clone()
+                        }),
+                        expr: const_decl.init_expr.clone()
+                    })),
+                &ast::Node::Statement(ref statement) => Some(statement.clone()),
+                &ast::Node::End => Some(ast::Statement::End),
                 _ => None
             })
             .collect::<Vec<_>>()

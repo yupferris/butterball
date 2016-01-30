@@ -14,7 +14,7 @@ pub enum Node {
     Statement(Statement),
     Label(String),
     Data(Data),
-    End
+    End // TODO: Remove when parsing bugs are fixed
 }
 
 #[derive(Debug)]
@@ -147,7 +147,8 @@ pub enum Statement {
     Restore(String),
     Read(LValue),
     Assignment(Assignment),
-    FunctionCall(FunctionCallOrArrayElemRef)
+    FunctionCall(FunctionCallOrArrayElemRef),
+    End
 }
 
 #[derive(Debug, Clone)]
