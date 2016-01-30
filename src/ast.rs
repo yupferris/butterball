@@ -197,14 +197,14 @@ pub enum LValue {
 }
 
 // TODO: Remove
-impl LValue {
+/*impl LValue {
     pub fn as_variable_ref(&self) -> VariableRef {
         match self {
             &LValue::VariableRef(ref variable_ref) => variable_ref.clone(),
             _ => panic!("LValue wasn't a variable ref")
         }
     }
-}
+}*/
 
 #[derive(Debug, Clone)]
 pub struct ArrayElemRef {
