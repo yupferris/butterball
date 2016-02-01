@@ -8,8 +8,10 @@ mod ast;
 mod parser;
 mod value;
 mod il;
+mod context;
+mod impls;
 mod compiler;
-mod interpreter;
+//mod interpreter;
 
 use std::env;
 use std::io;

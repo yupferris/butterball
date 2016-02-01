@@ -20,6 +20,13 @@ impl Variable {
             &Variable::Array(ref array) => &array.name
         }
     }
+
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &Variable::SingleVariable(ref single_variable) => single_variable.value_type,
+            &Variable::Array(ref array) => array.value_type
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -49,7 +56,8 @@ pub struct FunctionSignature {
 
 #[derive(Debug)]
 pub enum Statement {
-    For(For)
+    For(For),
+    Assignment(Assignment)
 }
 
 #[derive(Debug)]
@@ -79,5 +87,16 @@ pub enum VariableRef {
 
 #[derive(Debug)]
 pub enum Expr {
-    Todo
+    Float(f32),
+    Integer(i32),
+    VariableRef(VariableRef),
+    BinOp(BinOp)
+}
+
+// TODO: Merge with function call?
+#[derive(Debug)]
+pub struct BinOp {
+    pub impl_index: usize,
+    pub lhs: Box<Expr>,
+    pub rhs: Box<Expr>
 }

@@ -1,7 +1,7 @@
-use super::super::minifb::{Window, Scale, Key, MouseButton, MouseMode};
-use super::super::time;
+use super::minifb::{Window, Scale, Key, MouseButton, MouseMode};
+use super::time;
 
-use super::super::ast;
+use super::ast;
 use super::value::*;
 use super::context::*;
 
