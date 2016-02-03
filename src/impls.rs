@@ -7,46 +7,66 @@ use super::context::*;
 
 use std::f32::consts;
 
-pub type FunctionImpl = Box<Fn(&mut Context, &Vec<Value>) -> Value>;
+// TODO: Better name?
+pub struct FunctionImpl {
+    pub name: String,
+    pub function: Box<Fn(&mut Context, &Vec<Value>) -> Value>,
+    pub return_type: ValueType
+}
 
-pub fn build_impls_table() -> Vec<(&'static str, FunctionImpl)> {
+impl FunctionImpl {
+    pub fn new(
+        name: String,
+        function: Box<Fn(&mut Context, &Vec<Value>) -> Value>,
+        return_type: ValueType) -> FunctionImpl {
+
+        FunctionImpl {
+            name: name,
+            function: function,
+            return_type: return_type
+        }
+    }
+}
+
+// TODO: Better name
+pub fn build_impls_table() -> Vec<FunctionImpl> {
     vec![
-        ("Float", Box::new(float_cast)),
+        FunctionImpl::new(String::from("Float"), Box::new(float_cast), ValueType::Float),
 
-        ("Abs", Box::new(abs)),
+        FunctionImpl::new(String::from("Abs"), Box::new(abs), ValueType::Float),
 
-        ("Sin", Box::new(sin)),
-        ("Cos", Box::new(cos)),
+        FunctionImpl::new(String::from("Sin"), Box::new(sin), ValueType::Float),
+        FunctionImpl::new(String::from("Cos"), Box::new(cos), ValueType::Float),
 
-        ("AppTitle", Box::new(app_title)),
-        ("Graphics", Box::new(graphics)),
+        FunctionImpl::new(String::from("AppTitle"), Box::new(app_title), ValueType::Unit),
+        FunctionImpl::new(String::from("Graphics"), Box::new(graphics), ValueType::Unit),
 
-        ("SetBuffer", Box::new(set_buffer)),
-        ("BackBuffer", Box::new(back_buffer)),
+        FunctionImpl::new(String::from("SetBuffer"), Box::new(set_buffer), ValueType::Unit),
+        FunctionImpl::new(String::from("BackBuffer"), Box::new(back_buffer), ValueType::Integer),
 
-        ("LockBuffer", Box::new(lock_buffer)),
-        ("UnlockBuffer", Box::new(unlock_buffer)),
+        FunctionImpl::new(String::from("LockBuffer"), Box::new(lock_buffer), ValueType::Unit),
+        FunctionImpl::new(String::from("UnlockBuffer"), Box::new(unlock_buffer), ValueType::Unit),
 
-        ("WritePixelFast", Box::new(write_pixel_fast)),
+        FunctionImpl::new(String::from("WritePixelFast"), Box::new(write_pixel_fast), ValueType::Unit),
 
-        ("HidePointer", Box::new(hide_pointer)),
+        FunctionImpl::new(String::from("HidePointer"), Box::new(hide_pointer), ValueType::Unit),
 
-        ("SeedRnd", Box::new(seed_rnd)),
-        ("Rand", Box::new(rand)),
+        FunctionImpl::new(String::from("SeedRnd"), Box::new(seed_rnd), ValueType::Unit),
+        FunctionImpl::new(String::from("Rand"), Box::new(rand), ValueType::Integer),
 
-        ("MilliSecs", Box::new(milli_secs)),
+        FunctionImpl::new(String::from("MilliSecs"), Box::new(milli_secs), ValueType::Integer),
 
-        ("KeyDown", Box::new(key_down)),
+        FunctionImpl::new(String::from("KeyDown"), Box::new(key_down), ValueType::Bool),
 
-        ("MouseDown", Box::new(mouse_down)),
-        ("MouseX", Box::new(mouse_x)),
-        ("MouseY", Box::new(mouse_y)),
+        FunctionImpl::new(String::from("MouseDown"), Box::new(mouse_down), ValueType::Bool),
+        FunctionImpl::new(String::from("MouseX"), Box::new(mouse_x), ValueType::Integer),
+        FunctionImpl::new(String::from("MouseY"), Box::new(mouse_y), ValueType::Integer),
 
-        ("Cls", Box::new(cls)),
-        ("Flip", Box::new(flip)),
+        FunctionImpl::new(String::from("Cls"), Box::new(cls), ValueType::Unit),
+        FunctionImpl::new(String::from("Flip"), Box::new(flip), ValueType::Unit),
 
-        ("Color", Box::new(color)),
-        ("Text", Box::new(text))]
+        FunctionImpl::new(String::from("Color"), Box::new(color), ValueType::Unit),
+        FunctionImpl::new(String::from("Text"), Box::new(text), ValueType::Unit)]
 }
 
 fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -262,10 +282,10 @@ fn text(_: &mut Context, args: &Vec<Value>) -> Value {
 
 pub fn build_un_op_impls_table() -> Vec<((ast::Op, ValueType), FunctionImpl)> {
     vec![
-        ((ast::Op::Not, ValueType::Bool), Box::new(un_op_not_bool)),
+        ((ast::Op::Not, ValueType::Bool), FunctionImpl::new(String::from("un_op_not_bool"), Box::new(un_op_not_bool), ValueType::Bool)),
 
-        ((ast::Op::Neg, ValueType::Integer), Box::new(un_op_neg_int)),
-        ((ast::Op::Neg, ValueType::Float), Box::new(un_op_neg_float))]
+        ((ast::Op::Neg, ValueType::Integer), FunctionImpl::new(String::from("un_op_neg_int"), Box::new(un_op_neg_int), ValueType::Integer)),
+        ((ast::Op::Neg, ValueType::Float), FunctionImpl::new(String::from("un_op_neg_float"), Box::new(un_op_neg_float), ValueType::Float))]
 }
 
 fn un_op_not_bool(_: &mut Context, args: &Vec<Value>) -> Value {
@@ -282,45 +302,72 @@ fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
 
 pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), FunctionImpl)> {
     vec![
-        ((ast::Op::LtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_lt_eq_int_int)),
+        ((ast::Op::LtEq, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_lt_eq_int_int"), Box::new(bin_op_lt_eq_int_int), ValueType::Bool)),
 
-        ((ast::Op::GtEq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_eq_int_int)),
-        ((ast::Op::GtEq, ValueType::Float, ValueType::Integer), Box::new(bin_op_gt_eq_float_int)),
+        ((ast::Op::GtEq, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_gt_eq_int_int"), Box::new(bin_op_gt_eq_int_int), ValueType::Bool)),
+        ((ast::Op::GtEq, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_gt_eq_float_int"), Box::new(bin_op_gt_eq_float_int), ValueType::Bool)),
 
-        ((ast::Op::Lt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_lt_int_int)),
-        ((ast::Op::Lt, ValueType::Float, ValueType::Integer), Box::new(bin_op_lt_float_int)),
+        ((ast::Op::Lt, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_lt_int_int"), Box::new(bin_op_lt_int_int), ValueType::Bool)),
+        ((ast::Op::Lt, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_lt_float_int"), Box::new(bin_op_lt_float_int), ValueType::Bool)),
 
-        ((ast::Op::Gt, ValueType::Integer, ValueType::Integer), Box::new(bin_op_gt_int_int)),
-        ((ast::Op::Gt, ValueType::Float, ValueType::Integer), Box::new(bin_op_gt_float_int)),
+        ((ast::Op::Gt, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_gt_int_int"), Box::new(bin_op_gt_int_int), ValueType::Bool)),
+        ((ast::Op::Gt, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_gt_float_int"), Box::new(bin_op_gt_float_int), ValueType::Bool)),
 
-        ((ast::Op::Eq, ValueType::Integer, ValueType::Integer), Box::new(bin_op_eq_int_int)),
+        ((ast::Op::Eq, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_eq_int_int"), Box::new(bin_op_eq_int_int), ValueType::Bool)),
 
-        ((ast::Op::And, ValueType::Bool, ValueType::Bool), Box::new(bin_op_and_bool_bool)),
+        ((ast::Op::And, ValueType::Bool, ValueType::Bool),
+         FunctionImpl::new(String::from("bin_op_and_bool_bool"), Box::new(bin_op_and_bool_bool), ValueType::Bool)),
 
-        ((ast::Op::Add, ValueType::Integer, ValueType::Integer), Box::new(bin_op_add_int_int)),
-        ((ast::Op::Add, ValueType::Integer, ValueType::Float), Box::new(bin_op_add_int_float)),
-        ((ast::Op::Add, ValueType::Float, ValueType::Integer), Box::new(bin_op_add_float_int)),
-        ((ast::Op::Add, ValueType::Float, ValueType::Float), Box::new(bin_op_add_float_float)),
+        ((ast::Op::Add, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_add_int_int"), Box::new(bin_op_add_int_int), ValueType::Integer)),
+        ((ast::Op::Add, ValueType::Integer, ValueType::Float),
+         FunctionImpl::new(String::from("bin_op_add_int_float"), Box::new(bin_op_add_int_float), ValueType::Float)),
+        ((ast::Op::Add, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_add_float_int"), Box::new(bin_op_add_float_int), ValueType::Float)),
+        ((ast::Op::Add, ValueType::Float, ValueType::Float),
+         FunctionImpl::new(String::from("bin_op_add_float_float"), Box::new(bin_op_add_float_float), ValueType::Float)),
 
-        ((ast::Op::Add, ValueType::Integer, ValueType::String), Box::new(bin_op_add_int_string)),
+        ((ast::Op::Add, ValueType::Integer, ValueType::String),
+         FunctionImpl::new(String::from("bin_op_add_int_string"), Box::new(bin_op_add_int_string), ValueType::String)),
 
-        ((ast::Op::Sub, ValueType::Integer, ValueType::Integer), Box::new(bin_op_sub_int_int)),
-        ((ast::Op::Sub, ValueType::Float, ValueType::Integer), Box::new(bin_op_sub_float_int)),
-        ((ast::Op::Sub, ValueType::Float, ValueType::Float), Box::new(bin_op_sub_float_float)),
+        ((ast::Op::Sub, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_sub_int_int"), Box::new(bin_op_sub_int_int), ValueType::Integer)),
+        ((ast::Op::Sub, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_sub_float_int"), Box::new(bin_op_sub_float_int), ValueType::Float)),
+        ((ast::Op::Sub, ValueType::Float, ValueType::Float),
+         FunctionImpl::new(String::from("bin_op_sub_float_float"), Box::new(bin_op_sub_float_float), ValueType::Float)),
 
-        ((ast::Op::Mul, ValueType::Integer, ValueType::Integer), Box::new(bin_op_mul_int_int)),
-        ((ast::Op::Mul, ValueType::Integer, ValueType::Float), Box::new(bin_op_mul_int_float)),
-        ((ast::Op::Mul, ValueType::Float, ValueType::Integer), Box::new(bin_op_mul_float_int)),
-        ((ast::Op::Mul, ValueType::Float, ValueType::Float), Box::new(bin_op_mul_float_float)),
+        ((ast::Op::Mul, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_mul_int_int"), Box::new(bin_op_mul_int_int), ValueType::Integer)),
+        ((ast::Op::Mul, ValueType::Integer, ValueType::Float),
+         FunctionImpl::new(String::from("bin_op_mul_int_float"), Box::new(bin_op_mul_int_float), ValueType::Float)),
+        ((ast::Op::Mul, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_mul_float_int"), Box::new(bin_op_mul_float_int), ValueType::Float)),
+        ((ast::Op::Mul, ValueType::Float, ValueType::Float),
+         FunctionImpl::new(String::from("bin_op_mul_float_float"), Box::new(bin_op_mul_float_float), ValueType::Float)),
 
-        ((ast::Op::Div, ValueType::Integer, ValueType::Integer), Box::new(bin_op_div_int_int)),
-        ((ast::Op::Div, ValueType::Float, ValueType::Float), Box::new(bin_op_div_float_float)),
+        ((ast::Op::Div, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_div_int_int"), Box::new(bin_op_div_int_int), ValueType::Integer)),
+        ((ast::Op::Div, ValueType::Float, ValueType::Float),
+         FunctionImpl::new(String::from("bin_op_div_float_float"), Box::new(bin_op_div_float_float), ValueType::Float)),
 
-        ((ast::Op::Shl, ValueType::Integer, ValueType::Integer), Box::new(bin_op_shl_int_int)),
-        ((ast::Op::Shl, ValueType::Float, ValueType::Integer), Box::new(bin_op_shl_float_int)),
+        ((ast::Op::Shl, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_shl_int_int"), Box::new(bin_op_shl_int_int), ValueType::Integer)),
+        ((ast::Op::Shl, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_shl_float_int"), Box::new(bin_op_shl_float_int), ValueType::Integer)),
 
-        ((ast::Op::Shr, ValueType::Integer, ValueType::Integer), Box::new(bin_op_shr_int_int)),
-        ((ast::Op::Shr, ValueType::Float, ValueType::Integer), Box::new(bin_op_shr_float_int))]
+        ((ast::Op::Shr, ValueType::Integer, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_shr_int_int"), Box::new(bin_op_shr_int_int), ValueType::Integer)),
+        ((ast::Op::Shr, ValueType::Float, ValueType::Integer),
+         FunctionImpl::new(String::from("bin_op_shr_float_int"), Box::new(bin_op_shr_float_int), ValueType::Integer))]
 }
 
 fn bin_op_lt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {

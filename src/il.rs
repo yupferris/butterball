@@ -76,13 +76,25 @@ pub struct Assignment {
 
 #[derive(Debug)]
 pub enum LValue {
-    VariableRef(VariableRef)
+    VariableRef(VariableRef),
+    ArrayElemRef(ArrayElemRef)
 }
 
 #[derive(Debug)]
 pub enum VariableRef {
     Global(usize),
     Local(usize)
+}
+
+#[derive(Debug)]
+pub enum ArrayElemRef {
+    Global(GlobalArrayElemRef)
+}
+
+#[derive(Debug)]
+pub struct GlobalArrayElemRef {
+    pub global_index: usize,
+    pub dimensions: Vec<Box<Expr>>
 }
 
 #[derive(Debug)]
@@ -98,5 +110,8 @@ pub enum Expr {
 pub struct BinOp {
     pub impl_index: usize,
     pub lhs: Box<Expr>,
-    pub rhs: Box<Expr>
+    pub rhs: Box<Expr>,
+    pub lhs_type: ValueType,
+    pub rhs_type: ValueType,
+    pub return_type: ValueType
 }
