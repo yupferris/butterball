@@ -42,13 +42,14 @@ pub fn compile(root: &ast::Root) -> il::Program {
 
     let function_table =
         function_asts.iter()
-        .map(|x| compile_function(x, &bin_op_impls_index_map, &bin_op_impls_table, &globals_index_map, &function_index_map))
+        .map(|x| compile_function(x, &bin_op_impls_index_map, &bin_op_impls_table, &globals, &globals_index_map, &function_index_map))
         .collect::<Vec<_>>();
 
     // We build a main function as an AST node so later we can compile it like any other function declaration.
     let main_function_ast = build_main_function_ast(root);
     //println!("Main function AST: {:#?}", main_function_ast);
-    let main_function = compile_function(&main_function_ast, &bin_op_impls_index_map, &bin_op_impls_table, &globals_index_map, &function_index_map);
+    let main_function =
+        compile_function(&main_function_ast, &bin_op_impls_index_map, &bin_op_impls_table, &globals, &globals_index_map, &function_index_map);
 
     il::Program {
         globals: globals,
@@ -157,6 +158,7 @@ fn compile_function(
     function_decl: &ast::FunctionDecl,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     function_index_map: &HashMap<String, usize>) -> il::Function {
 
@@ -172,7 +174,8 @@ fn compile_function(
     println!("Locals: {:#?}", locals);
 
     let body = function_decl.body.iter()
-        .map(|statement| compile_statement(statement, bin_op_index_map, bin_op_impls_table, globals_index_map, &mut locals)).collect::<Vec<_>>();
+        .map(|statement| compile_statement(
+            statement, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, &mut locals)).collect::<Vec<_>>();
 
     il::Function {
         signature: signature,
@@ -204,11 +207,29 @@ fn compile_locals_visit_statement(
     locals: &mut Vec<il::Variable>) {
 
     match statement {
+        &ast::Statement::If(ref if_statement) =>
+            compile_locals_visit_if_statement(if_statement, globals_index_map, locals),
         &ast::Statement::For(ref for_statement) =>
             compile_locals_visit_for_statement(for_statement, globals_index_map, locals),
         &ast::Statement::Assignment(ref assignment) =>
             compile_locals_visit_assignment(assignment, globals_index_map, locals),
         _ => panic!("Unrecognized AST statement: {:#?}", statement)
+    }
+}
+
+fn compile_locals_visit_if_statement(
+    if_statement: &ast::If,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) {
+
+    for statement in if_statement.body.iter() {
+        compile_locals_visit_statement(statement, globals_index_map, locals);
+    }
+
+    if let Some(ref else_clause) = if_statement.else_clause {
+        for statement in else_clause.body.iter() {
+            compile_locals_visit_statement(statement, globals_index_map, locals);
+        }
     }
 }
 
@@ -252,15 +273,38 @@ fn compile_statement(
     statement: &ast::Statement,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &mut Vec<il::Variable>) -> il::Statement {
 
     match statement {
+        &ast::Statement::If(ref if_statement) =>
+            il::Statement::If(compile_if_statement(if_statement, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals)),
         &ast::Statement::For(ref for_statement) =>
-            il::Statement::For(compile_for_statement(for_statement, bin_op_index_map, bin_op_impls_table, globals_index_map, locals)),
+            il::Statement::For(compile_for_statement(for_statement, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals)),
         &ast::Statement::Assignment(ref assignment) =>
-            il::Statement::Assignment(compile_assignment(assignment, bin_op_index_map, bin_op_impls_table, globals_index_map, locals)),
+            il::Statement::Assignment(compile_assignment(assignment, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals)),
         _ => panic!("Unrecognized AST statement: {:#?}", statement)
+    }
+}
+
+fn compile_if_statement(
+    if_statement: &ast::If,
+    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
+    bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) -> il::If {
+
+    il::If {
+        condition: compile_expr(&if_statement.condition, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals),
+        body: if_statement.body.iter()
+            .map(|statement| compile_statement(statement, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals))
+            .collect::<Vec<_>>(),
+        else_clause: if_statement.else_clause.clone().map(
+            |else_clause| else_clause.body.iter()
+                .map(|statement| compile_statement(statement, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals))
+                .collect::<Vec<_>>())
     }
 }
 
@@ -268,6 +312,7 @@ fn compile_for_statement(
     for_statement: &ast::For,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &mut Vec<il::Variable>) -> il::For {
 
@@ -277,7 +322,7 @@ fn compile_for_statement(
         _ => panic!("Array element ref used as for loop iterator: {:#?}", index_l_value)
     };
     il::For {
-        initialization: compile_assignment(&for_statement.initialization, bin_op_index_map, bin_op_impls_table, globals_index_map, locals),
+        initialization: compile_assignment(&for_statement.initialization, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals),
         condition: compile_expr(&Box::new(ast::Expr::BinOp(ast::BinOp {
             op: ast::Op::Gt,
             lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
@@ -285,7 +330,7 @@ fn compile_for_statement(
                 type_specifier: None
             })),
             rhs: for_statement.to.clone()
-        })), bin_op_index_map, bin_op_impls_table, globals_index_map, locals),
+        })), bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals),
         increment: compile_assignment(&ast::Assignment {
             l_value: index_l_value.clone(),
             expr: Box::new(ast::Expr::BinOp(ast::BinOp {
@@ -293,9 +338,10 @@ fn compile_for_statement(
                 lhs: Box::new(ast::Expr::VariableRef(index_variable_ref.clone())),
                 rhs: for_statement.step.clone().unwrap_or(Box::new(ast::Expr::IntegerLiteral(1)))
             }))
-        }, bin_op_index_map, bin_op_impls_table, globals_index_map, locals),
+        }, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals),
         body: for_statement.body.iter()
-            .map(|statement| compile_statement(statement, bin_op_index_map, bin_op_impls_table, globals_index_map, locals)).collect::<Vec<_>>()
+            .map(|statement| compile_statement(statement, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals))
+            .collect::<Vec<_>>()
     }
 }
 
@@ -303,12 +349,13 @@ fn compile_assignment(
     assignment: &ast::Assignment,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &mut Vec<il::Variable>) -> il::Assignment {
 
     il::Assignment {
-        l_value: compile_l_value(&assignment.l_value, bin_op_index_map, bin_op_impls_table, globals_index_map, locals),
-        expr: compile_expr(&assignment.expr, bin_op_index_map, bin_op_impls_table, globals_index_map, locals)
+        l_value: compile_l_value(&assignment.l_value, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals),
+        expr: compile_expr(&assignment.expr, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals)
     }
 }
 
@@ -316,6 +363,7 @@ fn compile_l_value(
     l_value: &ast::LValue,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &mut Vec<il::Variable>) -> il::LValue {
 
@@ -323,7 +371,7 @@ fn compile_l_value(
         &ast::LValue::VariableRef(ref variable_ref) =>
             il::LValue::VariableRef(resolve_variable_ref(&variable_ref.name, globals_index_map, locals)),
         &ast::LValue::ArrayElemRef(ref array_elem_ref) =>
-            il::LValue::ArrayElemRef(compile_array_elem_ref(array_elem_ref, bin_op_index_map, bin_op_impls_table, globals_index_map, locals))
+            il::LValue::ArrayElemRef(compile_array_elem_ref(array_elem_ref, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals))
     }
 }
 
@@ -349,12 +397,13 @@ fn compile_array_elem_ref(
     array_elem_ref: &ast::ArrayElemRef,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>) -> il::ArrayElemRef {
 
     let dimensions =
         array_elem_ref.dimensions.iter()
-        .map(|x| compile_expr(x, bin_op_index_map, bin_op_impls_table, globals_index_map, locals))
+        .map(|x| compile_expr(x, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals))
         .collect::<Vec<_>>();
 
     // TODO: Resolve local arrays
@@ -373,6 +422,7 @@ fn compile_expr(
     expr: &Box<ast::Expr>,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>) -> Box<il::Expr> {
 
@@ -380,7 +430,7 @@ fn compile_expr(
         ast::Expr::FloatLiteral(value) => Box::new(il::Expr::Float(value)),
         ast::Expr::IntegerLiteral(value) => Box::new(il::Expr::Integer(value)),
         ast::Expr::VariableRef(ref variable_ref) => compile_variable_ref(variable_ref, globals_index_map, locals),
-        ast::Expr::BinOp(ref bin_op) => compile_bin_op(bin_op, bin_op_index_map, bin_op_impls_table, globals_index_map, locals),
+        ast::Expr::BinOp(ref bin_op) => compile_bin_op(bin_op, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals),
         _ => panic!("Unrecognized AST expression: {:#?}", expr)
     }
 }
@@ -397,14 +447,15 @@ fn compile_bin_op(
     bin_op: &ast::BinOp,
     bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>) -> Box<il::Expr> {
 
-    let lhs = compile_expr(&bin_op.lhs, bin_op_index_map, bin_op_impls_table, globals_index_map, locals);
-    let rhs = compile_expr(&bin_op.rhs, bin_op_index_map, bin_op_impls_table, globals_index_map, locals);
+    let lhs = compile_expr(&bin_op.lhs, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals);
+    let rhs = compile_expr(&bin_op.rhs, bin_op_index_map, bin_op_impls_table, globals, globals_index_map, locals);
 
-    let lhs_type = get_expr_type(&lhs, locals);
-    let rhs_type = get_expr_type(&rhs, locals);
+    let lhs_type = get_expr_type(&lhs, globals, locals);
+    let rhs_type = get_expr_type(&rhs, globals, locals);
 
     let key = (bin_op.op.clone(), lhs_type, rhs_type);
     if let Some(impl_index) = bin_op_index_map.get(&key) {
@@ -423,21 +474,23 @@ fn compile_bin_op(
 
 fn get_expr_type(
     expr: &Box<il::Expr>,
+    globals: &Vec<il::Variable>,
     locals: &Vec<il::Variable>) -> ValueType {
     match **expr {
         il::Expr::Float(_) => ValueType::Float,
         il::Expr::Integer(_) => ValueType::Integer,
-        il::Expr::VariableRef(ref variable_ref) => get_variable_ref_type(variable_ref, locals),
+        il::Expr::VariableRef(ref variable_ref) => get_variable_ref_type(variable_ref, globals, locals),
         il::Expr::BinOp(ref bin_op) => bin_op.return_type
     }
 }
 
 fn get_variable_ref_type(
     variable_ref: &il::VariableRef,
+    globals: &Vec<il::Variable>,
     locals: &Vec<il::Variable>) -> ValueType {
 
     match variable_ref {
-        &il::VariableRef::Local(index) => locals[index].value_type(),
-        _ => panic!("Unrecognized IL variable ref: {:?}", variable_ref)
+        &il::VariableRef::Global(index) => globals[index].value_type(),
+        &il::VariableRef::Local(index) => locals[index].value_type()
     }
 }

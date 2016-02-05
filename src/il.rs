@@ -56,8 +56,16 @@ pub struct FunctionSignature {
 
 #[derive(Debug)]
 pub enum Statement {
+    If(If),
     For(For),
     Assignment(Assignment)
+}
+
+#[derive(Debug)]
+pub struct If {
+    pub condition: Box<Expr>,
+    pub body: Vec<Statement>,
+    pub else_clause: Option<Vec<Statement>>
 }
 
 #[derive(Debug)]
