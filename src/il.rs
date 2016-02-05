@@ -58,7 +58,8 @@ pub struct FunctionSignature {
 pub enum Statement {
     If(If),
     For(For),
-    Assignment(Assignment)
+    Assignment(Assignment),
+    FunctionCall(FunctionCall),
 }
 
 #[derive(Debug)]
@@ -103,6 +104,12 @@ pub enum ArrayElemRef {
 pub struct GlobalArrayElemRef {
     pub global_index: usize,
     pub dimensions: Vec<Box<Expr>>
+}
+
+#[derive(Debug)]
+pub struct FunctionCall {
+    pub function_index: usize,
+    pub arguments: Vec<Box<Expr>>
 }
 
 #[derive(Debug)]
