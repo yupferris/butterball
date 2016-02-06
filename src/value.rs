@@ -86,27 +86,6 @@ impl Value {
         })
     }
 
-    // TODO: Remove
-    /*pub fn to_expr(&self) -> Box<ast::Expr> {
-        Box::new(match self {
-            &Value::Integer(value) => ast::Expr::IntegerLiteral(value),
-            &Value::Float(value) => ast::Expr::FloatLiteral(value),
-            &Value::Bool(value) => ast::Expr::BoolLiteral(value),
-            &Value::String(ref value) => ast::Expr::StringLiteral(value.clone()),
-            _ => panic!("Value cannot be represented as an expression: {:?}", self)
-        })
-    }*/
-
-    pub fn get_type(&self) -> ValueType {
-        match self {
-            &Value::Unit => ValueType::Unit,
-            &Value::Integer(_) => ValueType::Integer,
-            &Value::Float(_) => ValueType::Float,
-            &Value::Bool(_) => ValueType::Bool,
-            &Value::String(_) => ValueType::String
-        }
-    }
-
     pub fn cast_to(&self, value_type: &ValueType) -> Value {
         match value_type {
             &ValueType::Unit => self.cast_to_unit(),
