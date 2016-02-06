@@ -11,7 +11,7 @@ mod il;
 mod context;
 mod impls;
 mod compiler;
-//mod interpreter;
+mod interpreter;
 
 use std::env;
 use std::io;
@@ -37,10 +37,10 @@ fn compile() -> Result<(), String> {
 
     println!("Compiling...");
     let il = compiler::compile(&ast);
-    println!("IL: {:#?}", il);
+    //println!("IL: {:#?}", il);
 
-    //println!("Interpreting...");
-    //interpreter::interpret(&il);
+    println!("Interpreting...");
+    interpreter::interpret(&il);
 
     println!("Finished!");
 
