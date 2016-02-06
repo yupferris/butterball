@@ -42,6 +42,8 @@ pub fn compile(root: &ast::Root) -> il::Program {
         })
         .collect::<HashMap<_, _>>();
 
+    let (data_table, data_labels_map) = build_data_table_and_labels_map(root);
+
     let function_impls = impls::build_impls_table();
 
     let function_asts = get_function_asts(root);
@@ -68,6 +70,7 @@ pub fn compile(root: &ast::Root) -> il::Program {
             &bin_op_impls_table,
             &globals,
             &globals_index_map,
+            &data_labels_map,
             &function_index_map,
             &function_types_table))
         .map(|x| il::FunctionTableEntry::Function(x))
@@ -86,13 +89,15 @@ pub fn compile(root: &ast::Root) -> il::Program {
             &bin_op_impls_table,
             &globals,
             &globals_index_map,
+            &data_labels_map,
             &function_index_map,
             &function_types_table);
 
     il::Program {
-        globals: globals,
         un_op_impls_table: un_op_impls_table,
         bin_op_impls_table: bin_op_impls_table,
+        globals: globals,
+        data_table: data_table,
         function_table: function_table,
         main_function: main_function
     }
@@ -150,6 +155,34 @@ fn compile_array_variable(array_decl: &ast::ArrayDecl) -> il::Variable {
     })
 }
 
+fn build_data_table_and_labels_map(root: &ast::Root) -> (Vec<Value>, HashMap<String, usize>) {
+    let mut data_table = Vec::new();
+    let mut data_labels = HashMap::new();
+
+    for node in root.nodes.iter() {
+        match node {
+            &ast::Node::Label(ref name) => {
+                data_labels.insert(name.clone(), data_table.len());
+            },
+            &ast::Node::Data(ref data) => {
+                for value in data.values.iter() {
+                    data_table.push(match **value {
+                        ast::Expr::FloatLiteral(x) => Value::Float(x),
+                        ast::Expr::IntegerLiteral(x) => Value::Integer(x),
+                        ast::Expr::BoolLiteral(x) => Value::Bool(x),
+                        ast::Expr::StringLiteral(ref x) => Value::String(x.clone()),
+
+                        _ => panic!("Invalid data value: {:?}", value)
+                    });
+                }
+            },
+            _ => ()
+        }
+    }
+
+    (data_table, data_labels)
+}
+
 fn get_function_asts(root: &ast::Root) -> Vec<ast::FunctionDecl> {
     root.nodes.iter()
         .filter_map(|node| match node {
@@ -202,6 +235,7 @@ fn compile_function(
     bin_op_impls_table: &Vec<impls::FunctionImpl>,
     globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
+    data_labels_map: &HashMap<String, usize>,
     function_index_map: &HashMap<String, usize>,
     function_types_table: &Vec<ValueType>) -> il::Function {
 
@@ -222,6 +256,7 @@ fn compile_function(
             globals,
             globals_index_map,
             &locals,
+            data_labels_map,
             function_index_map,
             function_types_table))
         .collect::<Vec<_>>();
@@ -260,7 +295,11 @@ fn compile_locals_visit_statement(
     locals: &mut Vec<il::Variable>) {
 
     match statement {
-        &ast::Statement::ArrayDecl(_) | &ast::Statement::FunctionCall(_) | &ast::Statement::End => (),
+        &ast::Statement::ArrayDecl(_) |
+        &ast::Statement::Restore(_) |
+        &ast::Statement::Read(_) |
+        &ast::Statement::FunctionCall(_) |
+        &ast::Statement::End => (),
 
         &ast::Statement::If(ref if_statement) =>
             compile_locals_visit_if_statement(if_statement, globals_index_map, locals),
@@ -346,6 +385,7 @@ fn compile_statement(
     globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>,
+    data_labels_map: &HashMap<String, usize>,
     function_index_map: &HashMap<String, usize>,
     function_types_table: &Vec<ValueType>) -> il::Statement {
 
@@ -374,6 +414,7 @@ fn compile_statement(
                     globals,
                     globals_index_map,
                     locals,
+                    data_labels_map,
                     function_index_map,
                     function_types_table)),
         &ast::Statement::While(ref while_statement) =>
@@ -387,12 +428,28 @@ fn compile_statement(
                     globals,
                     globals_index_map,
                     locals,
+                    data_labels_map,
                     function_index_map,
                     function_types_table)),
         &ast::Statement::For(ref for_statement) =>
             il::Statement::For(
                 compile_for_statement(
                     for_statement,
+                    un_op_index_map,
+                    un_op_impls_table,
+                    bin_op_index_map,
+                    bin_op_impls_table,
+                    globals,
+                    globals_index_map,
+                    locals,
+                    data_labels_map,
+                    function_index_map,
+                    function_types_table)),
+        &ast::Statement::Restore(ref label_name) => il::Statement::Restore(*data_labels_map.get(label_name).unwrap()),
+        &ast::Statement::Read(ref l_value) =>
+            il::Statement::Read(
+                compile_l_value(
+                    l_value,
                     un_op_index_map,
                     un_op_impls_table,
                     bin_op_index_map,
@@ -478,6 +535,7 @@ fn compile_if_statement(
     globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>,
+    data_labels_map: &HashMap<String, usize>,
     function_index_map: &HashMap<String, usize>,
     function_types_table: &Vec<ValueType>) -> il::If {
 
@@ -504,6 +562,7 @@ fn compile_if_statement(
                      globals,
                      globals_index_map,
                      locals,
+                     data_labels_map,
                      function_index_map,
                      function_types_table))
             .collect::<Vec<_>>(),
@@ -519,6 +578,7 @@ fn compile_if_statement(
                          globals,
                          globals_index_map,
                          locals,
+                         data_labels_map,
                          function_index_map,
                          function_types_table))
                 .collect::<Vec<_>>())
@@ -534,6 +594,7 @@ fn compile_while_statement(
     globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>,
+    data_labels_map: &HashMap<String, usize>,
     function_index_map: &HashMap<String, usize>,
     function_types_table: &Vec<ValueType>) -> il::While {
 
@@ -560,6 +621,7 @@ fn compile_while_statement(
                      globals,
                      globals_index_map,
                      locals,
+                     data_labels_map,
                      function_index_map,
                      function_types_table))
             .collect::<Vec<_>>(),
@@ -575,6 +637,7 @@ fn compile_for_statement(
     globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>,
+    data_labels_map: &HashMap<String, usize>,
     function_index_map: &HashMap<String, usize>,
     function_types_table: &Vec<ValueType>) -> il::For {
 
@@ -642,6 +705,7 @@ fn compile_for_statement(
                      globals,
                      globals_index_map,
                      locals,
+                     data_labels_map,
                      function_index_map,
                      function_types_table))
             .collect::<Vec<_>>()
@@ -846,6 +910,7 @@ fn compile_expr(
     match **expr {
         ast::Expr::FloatLiteral(value) => Box::new(il::Expr::Float(value)),
         ast::Expr::IntegerLiteral(value) => Box::new(il::Expr::Integer(value)),
+        ast::Expr::BoolLiteral(value) => Box::new(il::Expr::Bool(value)),
         ast::Expr::StringLiteral(ref value) => Box::new(il::Expr::String(value.clone())),
         ast::Expr::FunctionCallOrArrayElemRef(ref function_call_or_array_elem_ref) =>
             compile_function_call_or_array_elem_ref(
@@ -883,8 +948,7 @@ fn compile_expr(
                 globals_index_map,
                 locals,
                 function_index_map,
-                function_types_table))),
-        _ => panic!("Unrecognized AST expression: {:#?}", expr)
+                function_types_table)))
     }
 }
 
@@ -1039,6 +1103,7 @@ fn get_expr_type(expr: &Box<il::Expr>) -> ValueType {
     match **expr {
         il::Expr::Float(_) => ValueType::Float,
         il::Expr::Integer(_) => ValueType::Integer,
+        il::Expr::Bool(_) => ValueType::Bool,
         il::Expr::String(_) => ValueType::String,
         il::Expr::Cast(ref cast) => cast.target_type,
         il::Expr::FunctionCall(ref function_call) => function_call.return_type,

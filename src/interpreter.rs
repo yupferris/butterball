@@ -14,7 +14,9 @@ struct State {
 
     // TODO: Nest this part of the structure?
     stack: Vec<Value>,
-    base_pointer: i32
+    base_pointer: i32,
+
+    data_pointer: usize
 }
 
 impl State {
@@ -39,7 +41,9 @@ impl State {
                 .collect::<Vec<_>>(),
 
             stack: Vec::new(),
-            base_pointer: 0
+            base_pointer: 0,
+
+            data_pointer: 0
         }
     }
 }
@@ -75,6 +79,8 @@ fn interpret_statement(statement: &il::Statement, program: &il::Program, state: 
         &il::Statement::If(ref if_statement) => interpret_if_statement(if_statement, program, state),
         &il::Statement::While(ref while_statement) => interpret_while_statement(while_statement, program, state),
         &il::Statement::For(ref for_statement) => interpret_for_statement(for_statement, program, state),
+        &il::Statement::Restore(index) => { state.data_pointer = index; },
+        &il::Statement::Read(ref l_value) => interpret_read(l_value, program, state),
         &il::Statement::Assignment(ref assignment) => interpret_assignment(assignment, program, state),
         &il::Statement::FunctionCall(ref function_call) => { eval_function_call(function_call, program, state); },
         _ => panic!("Unrecognized statement: {:#?}", statement)
@@ -140,9 +146,26 @@ fn interpret_for_statement(for_statement: &il::For, program: &il::Program, state
     }
 }
 
+fn interpret_read(l_value: &il::LValue, program: &il::Program, state: &mut State) {
+    if state.data_pointer >= program.data_table.len() {
+        panic!(
+            "Data pointer out of range: {}/{}\nData table: {:#?}",
+            state.data_pointer,
+            program.data_table.len(),
+            program.data_table);
+    }
+    let value = program.data_table[state.data_pointer].clone();
+    state.data_pointer += 1;
+    perform_assignment(l_value, value, program, state);
+}
+
 fn interpret_assignment(assignment: &il::Assignment, program: &il::Program, state: &mut State) {
     let value = eval_expr(&assignment.expr, program, state);
-    match &assignment.l_value {
+    perform_assignment(&assignment.l_value, value, program, state);
+}
+
+fn perform_assignment(l_value: &il::LValue, value: Value, program: &il::Program, state: &mut State) {
+    match l_value {
         &il::LValue::VariableRef(ref variable_ref) => {
             match variable_ref {
                 &il::VariableRef::Global(ref global_variable_ref) => {
@@ -150,7 +173,7 @@ fn interpret_assignment(assignment: &il::Assignment, program: &il::Program, stat
                         &mut Variable::SingleVariable(ref mut single_variable) => {
                             single_variable.value = value;
                         },
-                        _ => panic!("LValue was not a single variable: {:#?}", assignment)
+                        _ => panic!("LValue was not a single variable: {:#?}", l_value)
                     }
                 },
                 &il::VariableRef::Local(ref local_variable_ref) => {
@@ -177,7 +200,7 @@ fn interpret_assignment(assignment: &il::Assignment, program: &il::Program, stat
                             }
                             array.values[index as usize] = value;
                         },
-                        _ => panic!("LValue was not an array: {:#?}", assignment)
+                        _ => panic!("LValue was not an array: {:#?}", l_value)
                     }
                 }
             }
@@ -190,7 +213,8 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
     match function_table_entry {
         &il::FunctionTableEntry::Function(ref function) => {
             state.stack.push(Value::Integer(state.base_pointer));
-            state.base_pointer = state.stack.len() as i32;
+            let callee_base_pointer = state.stack.len() as i32;
+
             state.stack.reserve(function.stack_frame_size);
 
             for arg in function_call.arguments.iter() {
@@ -208,6 +232,10 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
                 println!("{:#?}", state.stack[i]);
             }
             println!("");*/
+
+            // This assignment has to happen _after_ evaluating the function arguments, otherwise arguments that reference the caller's locals
+            // will be indexed relative to the callee's stack frame, rather than the caller's
+            state.base_pointer = callee_base_pointer;
 
             interpret_function(function, program, state);
 
@@ -231,6 +259,7 @@ fn eval_expr(expr: &il::Expr, program: &il::Program, state: &mut State) -> Value
     match expr {
         &il::Expr::Integer(value) => Value::Integer(value),
         &il::Expr::Float(value) => Value::Float(value),
+        &il::Expr::Bool(value) => Value::Bool(value),
         &il::Expr::String(ref value) => Value::String(value.clone()),
         &il::Expr::Cast(ref cast) => eval_expr(&cast.expr, program, state).cast_to(&cast.target_type),
         &il::Expr::FunctionCall(ref function_call) => eval_function_call(function_call, program, state),

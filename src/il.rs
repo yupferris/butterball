@@ -3,9 +3,10 @@ use super::impls::*;
 
 #[derive(Debug)]
 pub struct Program {
-    pub globals: Vec<Variable>,
     pub un_op_impls_table: Vec<FunctionImpl>,
     pub bin_op_impls_table: Vec<FunctionImpl>,
+    pub globals: Vec<Variable>,
+    pub data_table: Vec<Value>,
     pub function_table: Vec<FunctionTableEntry>,
     pub main_function: Function
 }
@@ -71,6 +72,8 @@ pub enum Statement {
     If(If),
     While(While),
     For(For),
+    Restore(usize),
+    Read(LValue),
     Assignment(Assignment),
     FunctionCall(FunctionCall),
     End
@@ -189,6 +192,7 @@ pub struct FunctionCall {
 pub enum Expr {
     Float(f32),
     Integer(i32),
+    Bool(bool),
     String(String),
     Cast(Cast),
     FunctionCall(FunctionCall),
