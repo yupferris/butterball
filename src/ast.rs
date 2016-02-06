@@ -81,8 +81,10 @@ pub enum Expr {
 
 #[derive(Debug, Clone)]
 pub struct FunctionCallOrArrayElemRef {
+    // TODO: Rename
     pub function_name: String,
     pub type_specifier: Option<TypeSpecifier>,
+    // TODO: Rename
     pub arguments: ArgumentList
 }
 
@@ -100,7 +102,7 @@ pub struct UnOp {
     pub expr: Box<Expr>
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Op {
     Not,
 

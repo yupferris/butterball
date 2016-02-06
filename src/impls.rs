@@ -5,6 +5,8 @@ use super::ast;
 use super::value::*;
 use super::context::*;
 
+use std::fmt;
+
 use std::f32::consts;
 
 // TODO: Better name?
@@ -25,6 +27,12 @@ impl FunctionImpl {
             function: function,
             return_type: return_type
         }
+    }
+}
+
+impl fmt::Debug for FunctionImpl {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FunctionImpl {{ name: {}, return_type: {:?} }}", self.name, self.return_type)
     }
 }
 

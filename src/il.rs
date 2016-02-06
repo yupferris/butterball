@@ -1,9 +1,10 @@
 use super::value::*;
+use super::impls::*;
 
 #[derive(Debug)]
 pub struct Program {
     pub globals: Vec<Variable>,
-    pub function_table: Vec<Function>,
+    pub function_table: Vec<FunctionTableEntry>,
     pub main_function: Function
 }
 
@@ -40,6 +41,12 @@ pub struct SingleVariable {
 pub struct Array {
     pub name: String,
     pub value_type: ValueType
+}
+
+#[derive(Debug)]
+pub enum FunctionTableEntry {
+    Function(Function),
+    FunctionImpl(FunctionImpl)
 }
 
 #[derive(Debug)]
@@ -100,24 +107,45 @@ pub enum ArrayElemRef {
     Global(GlobalArrayElemRef)
 }
 
+impl ArrayElemRef {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &ArrayElemRef::Global(ref global_array_elem_ref) => global_array_elem_ref.value_type
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct GlobalArrayElemRef {
     pub global_index: usize,
-    pub dimensions: Vec<Box<Expr>>
+    pub dimensions: Vec<Box<Expr>>,
+    pub value_type: ValueType
 }
 
 #[derive(Debug)]
 pub struct FunctionCall {
     pub function_index: usize,
-    pub arguments: Vec<Box<Expr>>
+    pub arguments: Vec<Box<Expr>>,
+    pub return_type: ValueType
 }
 
 #[derive(Debug)]
 pub enum Expr {
     Float(f32),
     Integer(i32),
+    FunctionCall(FunctionCall),
+    ArrayElemRef(ArrayElemRef),
     VariableRef(VariableRef),
+    UnOp(UnOp),
     BinOp(BinOp)
+}
+
+// TODO: Merge with function call?
+#[derive(Debug)]
+pub struct UnOp {
+    pub impl_index: usize,
+    pub expr: Box<Expr>,
+    pub return_type: ValueType
 }
 
 // TODO: Merge with function call?
@@ -126,7 +154,5 @@ pub struct BinOp {
     pub impl_index: usize,
     pub lhs: Box<Expr>,
     pub rhs: Box<Expr>,
-    pub lhs_type: ValueType,
-    pub rhs_type: ValueType,
     pub return_type: ValueType
 }
