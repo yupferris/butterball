@@ -4,6 +4,8 @@ use super::impls::*;
 #[derive(Debug)]
 pub struct Program {
     pub globals: Vec<Variable>,
+    pub un_op_impls_table: Vec<FunctionImpl>,
+    pub bin_op_impls_table: Vec<FunctionImpl>,
     pub function_table: Vec<FunctionTableEntry>,
     pub main_function: Function
 }
@@ -63,10 +65,25 @@ pub struct FunctionSignature {
 
 #[derive(Debug)]
 pub enum Statement {
+    ArrayAlloc(ArrayAlloc),
     If(If),
+    While(While),
     For(For),
     Assignment(Assignment),
     FunctionCall(FunctionCall),
+    End
+}
+
+#[derive(Debug)]
+pub struct ArrayAlloc {
+    pub array_ref: ArrayRef,
+    pub dimensions: Vec<Box<Expr>>,
+    pub value_type: ValueType
+}
+
+#[derive(Debug)]
+pub enum ArrayRef {
+    Global(usize)
 }
 
 #[derive(Debug)]
@@ -74,6 +91,12 @@ pub struct If {
     pub condition: Box<Expr>,
     pub body: Vec<Statement>,
     pub else_clause: Option<Vec<Statement>>
+}
+
+#[derive(Debug)]
+pub struct While {
+    pub condition: Box<Expr>,
+    pub body: Vec<Statement>
 }
 
 #[derive(Debug)]
@@ -133,6 +156,7 @@ pub struct FunctionCall {
 pub enum Expr {
     Float(f32),
     Integer(i32),
+    String(String),
     FunctionCall(FunctionCall),
     ArrayElemRef(ArrayElemRef),
     VariableRef(VariableRef),

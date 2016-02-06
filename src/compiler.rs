@@ -42,8 +42,6 @@ pub fn compile(root: &ast::Root) -> il::Program {
         })
         .collect::<HashMap<_, _>>();
 
-    println!("Globals: {:#?}", globals);
-
     let function_impls = impls::build_impls_table();
 
     let function_asts = get_function_asts(root);
@@ -93,6 +91,8 @@ pub fn compile(root: &ast::Root) -> il::Program {
 
     il::Program {
         globals: globals,
+        un_op_impls_table: un_op_impls_table,
+        bin_op_impls_table: bin_op_impls_table,
         function_table: function_table,
         main_function: main_function
     }
@@ -210,11 +210,7 @@ fn compile_function(
         args: function_decl.args.iter().map(compile_single_variable).collect::<Vec<_>>()
     };
 
-    println!("Compiling function: {}", signature.name);
-
     let locals = compile_locals(function_decl, &signature, globals_index_map);
-
-    //println!("Locals: {:#?}", locals);
 
     let body = function_decl.body.iter()
         .map(|statement| compile_statement(
@@ -260,13 +256,17 @@ fn compile_locals_visit_statement(
     locals: &mut Vec<il::Variable>) {
 
     match statement {
+        &ast::Statement::ArrayDecl(_) | &ast::Statement::FunctionCall(_) | &ast::Statement::End => (),
+
         &ast::Statement::If(ref if_statement) =>
             compile_locals_visit_if_statement(if_statement, globals_index_map, locals),
+        &ast::Statement::While(ref while_statement) =>
+            compile_locals_visit_while_statement(while_statement, globals_index_map, locals),
         &ast::Statement::For(ref for_statement) =>
             compile_locals_visit_for_statement(for_statement, globals_index_map, locals),
         &ast::Statement::Assignment(ref assignment) =>
             compile_locals_visit_assignment(assignment, globals_index_map, locals),
-        &ast::Statement::FunctionCall(_) => (),
+
         _ => panic!("Unrecognized AST statement: {:#?}", statement)
     }
 }
@@ -284,6 +284,16 @@ fn compile_locals_visit_if_statement(
         for statement in else_clause.body.iter() {
             compile_locals_visit_statement(statement, globals_index_map, locals);
         }
+    }
+}
+
+fn compile_locals_visit_while_statement(
+    while_statement: &ast::While,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &mut Vec<il::Variable>) {
+
+    for statement in while_statement.body.iter() {
+        compile_locals_visit_statement(statement, globals_index_map, locals);
     }
 }
 
@@ -336,10 +346,36 @@ fn compile_statement(
     function_types_table: &Vec<ValueType>) -> il::Statement {
 
     match statement {
+        &ast::Statement::ArrayDecl(ref array_decl) =>
+            il::Statement::ArrayAlloc(
+                compile_array_alloc(
+                    array_decl,
+                    un_op_index_map,
+                    un_op_impls_table,
+                    bin_op_index_map,
+                    bin_op_impls_table,
+                    globals,
+                    globals_index_map,
+                    locals,
+                    function_index_map,
+                    function_types_table)),
         &ast::Statement::If(ref if_statement) =>
             il::Statement::If(
                 compile_if_statement(
                     if_statement,
+                    un_op_index_map,
+                    un_op_impls_table,
+                    bin_op_index_map,
+                    bin_op_impls_table,
+                    globals,
+                    globals_index_map,
+                    locals,
+                    function_index_map,
+                    function_types_table)),
+        &ast::Statement::While(ref while_statement) =>
+            il::Statement::While(
+                compile_while_statement(
+                    while_statement,
                     un_op_index_map,
                     un_op_impls_table,
                     bin_op_index_map,
@@ -388,7 +424,44 @@ fn compile_statement(
                     locals,
                     function_index_map,
                     function_types_table)),
+        &ast::Statement::End => il::Statement::End,
         _ => panic!("Unrecognized AST statement: {:#?}", statement)
+    }
+}
+
+fn compile_array_alloc(
+    array_decl: &ast::ArrayDecl,
+    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
+    un_op_impls_table: &Vec<impls::FunctionImpl>,
+    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
+    bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &Vec<il::Variable>,
+    function_index_map: &HashMap<String, usize>,
+    function_types_table: &Vec<ValueType>) -> il::ArrayAlloc {
+
+    // TODO: Resolve local arrays
+    // TODO: Try to reuse code between resolve_variable_ref
+    match globals_index_map.get(&array_decl.name) {
+        Some(index) => il::ArrayAlloc {
+            array_ref: il::ArrayRef::Global(*index),
+            dimensions: array_decl.dimensions.iter()
+                .map(|x| compile_expr(
+                    x,
+                    un_op_index_map,
+                    un_op_impls_table,
+                    bin_op_index_map,
+                    bin_op_impls_table,
+                    globals,
+                    globals_index_map,
+                    locals,
+                    function_index_map,
+                    function_types_table))
+                .collect::<Vec<_>>(),
+            value_type: compile_value_type(&array_decl.type_specifier)
+        },
+        _ => panic!("Unable to resolve array name: {:?}", array_decl)
     }
 }
 
@@ -445,6 +518,47 @@ fn compile_if_statement(
                          function_index_map,
                          function_types_table))
                 .collect::<Vec<_>>())
+    }
+}
+
+fn compile_while_statement(
+    while_statement: &ast::While,
+    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
+    un_op_impls_table: &Vec<impls::FunctionImpl>,
+    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
+    bin_op_impls_table: &Vec<impls::FunctionImpl>,
+    globals: &Vec<il::Variable>,
+    globals_index_map: &HashMap<String, usize>,
+    locals: &Vec<il::Variable>,
+    function_index_map: &HashMap<String, usize>,
+    function_types_table: &Vec<ValueType>) -> il::While {
+
+    il::While {
+        condition: compile_expr(
+            &while_statement.condition,
+            un_op_index_map,
+            un_op_impls_table,
+            bin_op_index_map,
+            bin_op_impls_table,
+            globals,
+            globals_index_map,
+            locals,
+            function_index_map,
+            function_types_table),
+        body: while_statement.body.iter()
+            .map(|statement|
+                 compile_statement(
+                     statement,
+                     un_op_index_map,
+                     un_op_impls_table,
+                     bin_op_index_map,
+                     bin_op_impls_table,
+                     globals,
+                     globals_index_map,
+                     locals,
+                     function_index_map,
+                     function_types_table))
+            .collect::<Vec<_>>(),
     }
 }
 
@@ -708,6 +822,7 @@ fn compile_expr(
     match **expr {
         ast::Expr::FloatLiteral(value) => Box::new(il::Expr::Float(value)),
         ast::Expr::IntegerLiteral(value) => Box::new(il::Expr::Integer(value)),
+        ast::Expr::StringLiteral(ref value) => Box::new(il::Expr::String(value.clone())),
         ast::Expr::FunctionCallOrArrayElemRef(ref function_call_or_array_elem_ref) =>
             compile_function_call_or_array_elem_ref(
                 function_call_or_array_elem_ref,
@@ -901,6 +1016,7 @@ fn get_expr_type(
     match **expr {
         il::Expr::Float(_) => ValueType::Float,
         il::Expr::Integer(_) => ValueType::Integer,
+        il::Expr::String(_) => ValueType::String,
         il::Expr::FunctionCall(ref function_call) => function_call.return_type,
         il::Expr::ArrayElemRef(ref array_elem_ref) => array_elem_ref.value_type(),
         il::Expr::VariableRef(ref variable_ref) => get_variable_ref_type(variable_ref, globals, locals),
