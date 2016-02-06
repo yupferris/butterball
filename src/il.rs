@@ -54,6 +54,8 @@ pub enum FunctionTableEntry {
 #[derive(Debug)]
 pub struct Function {
     pub signature: FunctionSignature,
+    pub locals: Vec<Variable>,
+    pub stack_frame_size: usize,
     pub body: Vec<Statement>
 }
 
@@ -99,6 +101,7 @@ pub struct While {
     pub body: Vec<Statement>
 }
 
+// TODO: Flatten into initialization + While?
 #[derive(Debug)]
 pub struct For {
     pub initialization: Assignment,

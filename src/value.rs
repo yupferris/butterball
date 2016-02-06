@@ -1,7 +1,5 @@
 // TODO: This whole module should really be a part of the IL
 
-use super::ast;
-
 #[derive(Debug, Clone)]
 pub enum Value {
     Unit,

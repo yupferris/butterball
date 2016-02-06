@@ -226,8 +226,12 @@ fn compile_function(
             function_types_table))
         .collect::<Vec<_>>();
 
+    let stack_frame_size = locals.len();
+
     il::Function {
         signature: signature,
+        locals: locals,
+        stack_frame_size: stack_frame_size,
         body: body
     }
 }
@@ -593,7 +597,7 @@ fn compile_for_statement(
             function_types_table),
         condition: compile_expr(
             &Box::new(ast::Expr::BinOp(ast::BinOp {
-                op: ast::Op::Gt,
+                op: ast::Op::LtEq,
                 lhs: Box::new(ast::Expr::VariableRef(ast::VariableRef {
                     name: index_variable_ref.name.clone(),
                     type_specifier: None
