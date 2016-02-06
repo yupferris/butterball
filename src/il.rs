@@ -122,10 +122,40 @@ pub enum LValue {
     ArrayElemRef(ArrayElemRef)
 }
 
+impl LValue {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &LValue::VariableRef(ref variable_ref) => variable_ref.value_type(),
+            &LValue::ArrayElemRef(ref array_elem_ref) => array_elem_ref.value_type()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum VariableRef {
-    Global(usize),
-    Local(usize)
+    Global(GlobalVariableRef),
+    Local(LocalVariableRef)
+}
+
+impl VariableRef {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &VariableRef::Global(ref global_variable_ref) => global_variable_ref.value_type,
+            &VariableRef::Local(ref local_variable_ref) => local_variable_ref.value_type
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GlobalVariableRef {
+    pub global_index: usize,
+    pub value_type: ValueType
+}
+
+#[derive(Debug)]
+pub struct LocalVariableRef {
+    pub local_index: usize,
+    pub value_type: ValueType
 }
 
 #[derive(Debug)]
@@ -160,11 +190,19 @@ pub enum Expr {
     Float(f32),
     Integer(i32),
     String(String),
+    Cast(Cast),
     FunctionCall(FunctionCall),
     ArrayElemRef(ArrayElemRef),
     VariableRef(VariableRef),
     UnOp(UnOp),
     BinOp(BinOp)
+}
+
+// TODO: Merge with function call?
+#[derive(Debug)]
+pub struct Cast {
+    pub expr: Box<Expr>,
+    pub target_type: ValueType
 }
 
 // TODO: Merge with function call?

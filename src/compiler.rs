@@ -660,29 +660,42 @@ fn compile_assignment(
     function_index_map: &HashMap<String, usize>,
     function_types_table: &Vec<ValueType>) -> il::Assignment {
 
+    let l_value = compile_l_value(
+        &assignment.l_value,
+        un_op_index_map,
+        un_op_impls_table,
+        bin_op_index_map,
+        bin_op_impls_table,
+        globals,
+        globals_index_map,
+        locals,
+        function_index_map,
+        function_types_table);
+
+    let expr = compile_expr(
+        &assignment.expr,
+        un_op_index_map,
+        un_op_impls_table,
+        bin_op_index_map,
+        bin_op_impls_table,
+        globals,
+        globals_index_map,
+        locals,
+        function_index_map,
+        function_types_table);
+
+    let value_type = l_value.value_type();
+
     il::Assignment {
-        l_value: compile_l_value(
-            &assignment.l_value,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table),
-        expr: compile_expr(
-            &assignment.expr,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table)
+        l_value: l_value,
+        expr: if get_expr_type(&expr) == value_type {
+            expr
+        } else {
+            Box::new(il::Expr::Cast(il::Cast {
+                expr: expr,
+                target_type: value_type
+            }))
+        }
     }
 }
 
@@ -736,7 +749,7 @@ fn compile_l_value(
 
     match l_value {
         &ast::LValue::VariableRef(ref variable_ref) =>
-            il::LValue::VariableRef(resolve_variable_ref(&variable_ref.name, globals_index_map, locals)),
+            il::LValue::VariableRef(resolve_variable_ref(&variable_ref.name, globals, globals_index_map, locals)),
         &ast::LValue::ArrayElemRef(ref array_elem_ref) =>
             il::LValue::ArrayElemRef(
                 compile_array_elem_ref(
@@ -755,17 +768,24 @@ fn compile_l_value(
 
 fn resolve_variable_ref(
     name: &String,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>) -> il::VariableRef {
 
     for (index, local) in locals.iter().enumerate() {
         if name == local.name() {
-            return il::VariableRef::Local(index);
+            return il::VariableRef::Local(il::LocalVariableRef {
+                local_index: index,
+                value_type: local.value_type()
+            });
         }
     }
 
     if let Some(index) = globals_index_map.get(name) {
-        return il::VariableRef::Global(*index);
+        return il::VariableRef::Global(il::GlobalVariableRef {
+            global_index: *index,
+            value_type: globals[*index].value_type()
+        });
     }
 
     panic!("Unable to resolve variable ref: {}", name);
@@ -839,7 +859,7 @@ fn compile_expr(
                 locals,
                 function_index_map,
                 function_types_table),
-        ast::Expr::VariableRef(ref variable_ref) => compile_variable_ref(variable_ref, globals_index_map, locals),
+        ast::Expr::VariableRef(ref variable_ref) => compile_variable_ref(variable_ref, globals, globals_index_map, locals),
         ast::Expr::UnOp(ref un_op) =>
             Box::new(il::Expr::UnOp(compile_un_op(
                 un_op,
@@ -918,10 +938,11 @@ fn compile_function_call_or_array_elem_ref(
 
 fn compile_variable_ref(
     variable_ref: &ast::VariableRef,
+    globals: &Vec<il::Variable>,
     globals_index_map: &HashMap<String, usize>,
     locals: &Vec<il::Variable>) -> Box<il::Expr> {
 
-    Box::new(il::Expr::VariableRef(resolve_variable_ref(&variable_ref.name, globals_index_map, locals)))
+    Box::new(il::Expr::VariableRef(resolve_variable_ref(&variable_ref.name, globals, globals_index_map, locals)))
 }
 
 fn compile_un_op(
@@ -948,7 +969,7 @@ fn compile_un_op(
         function_index_map,
         function_types_table);
 
-    let expr_type = get_expr_type(&expr, globals, locals);
+    let expr_type = get_expr_type(&expr);
 
     let key = (un_op.op, expr_type);
     if let Some(impl_index) = un_op_index_map.get(&key) {
@@ -997,8 +1018,8 @@ fn compile_bin_op(
         function_index_map,
         function_types_table);
 
-    let lhs_type = get_expr_type(&lhs, globals, locals);
-    let rhs_type = get_expr_type(&rhs, globals, locals);
+    let lhs_type = get_expr_type(&lhs);
+    let rhs_type = get_expr_type(&rhs);
 
     let key = (bin_op.op, lhs_type, rhs_type);
     if let Some(impl_index) = bin_op_index_map.get(&key) {
@@ -1013,29 +1034,17 @@ fn compile_bin_op(
     }
 }
 
-fn get_expr_type(
-    expr: &Box<il::Expr>,
-    globals: &Vec<il::Variable>,
-    locals: &Vec<il::Variable>) -> ValueType {
+// TODO: Move to il
+fn get_expr_type(expr: &Box<il::Expr>) -> ValueType {
     match **expr {
         il::Expr::Float(_) => ValueType::Float,
         il::Expr::Integer(_) => ValueType::Integer,
         il::Expr::String(_) => ValueType::String,
+        il::Expr::Cast(ref cast) => cast.target_type,
         il::Expr::FunctionCall(ref function_call) => function_call.return_type,
         il::Expr::ArrayElemRef(ref array_elem_ref) => array_elem_ref.value_type(),
-        il::Expr::VariableRef(ref variable_ref) => get_variable_ref_type(variable_ref, globals, locals),
+        il::Expr::VariableRef(ref variable_ref) => variable_ref.value_type(),
         il::Expr::UnOp(ref un_op) => un_op.return_type,
         il::Expr::BinOp(ref bin_op) => bin_op.return_type
-    }
-}
-
-fn get_variable_ref_type(
-    variable_ref: &il::VariableRef,
-    globals: &Vec<il::Variable>,
-    locals: &Vec<il::Variable>) -> ValueType {
-
-    match variable_ref {
-        &il::VariableRef::Global(index) => globals[index].value_type(),
-        &il::VariableRef::Local(index) => locals[index].value_type()
     }
 }

@@ -145,18 +145,17 @@ fn interpret_assignment(assignment: &il::Assignment, program: &il::Program, stat
     match &assignment.l_value {
         &il::LValue::VariableRef(ref variable_ref) => {
             match variable_ref {
-                &il::VariableRef::Global(index) => {
-                    match &mut state.globals[index] {
+                &il::VariableRef::Global(ref global_variable_ref) => {
+                    match &mut state.globals[global_variable_ref.global_index] {
                         &mut Variable::SingleVariable(ref mut single_variable) => {
-                            single_variable.value = value.cast_to(&single_variable.value_type);
+                            single_variable.value = value;
                         },
                         _ => panic!("LValue was not a single variable: {:#?}", assignment)
                     }
                 },
-                &il::VariableRef::Local(index) => {
+                &il::VariableRef::Local(ref local_variable_ref) => {
                     // TODO: Support local arrays
-                    // TODO: Ensure value is the correct type for the assignment target (could do during compilation)
-                    state.stack[state.base_pointer as usize + index] = value;
+                    state.stack[state.base_pointer as usize + local_variable_ref.local_index] = value;
                 }
             }
         },
@@ -176,7 +175,7 @@ fn interpret_assignment(assignment: &il::Assignment, program: &il::Program, stat
                                 index += dimensions[i].cast_to_integer().as_integer() * dim_multiplier;
                                 dim_multiplier *= current_dimension_size;
                             }
-                            array.values[index as usize] = value.cast_to(&array.value_type);
+                            array.values[index as usize] = value;
                         },
                         _ => panic!("LValue was not an array: {:#?}", assignment)
                     }
@@ -231,13 +230,14 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
 fn eval_expr(expr: &il::Expr, program: &il::Program, state: &mut State) -> Value {
     match expr {
         &il::Expr::Integer(value) => Value::Integer(value),
+        &il::Expr::Float(value) => Value::Float(value),
         &il::Expr::String(ref value) => Value::String(value.clone()),
+        &il::Expr::Cast(ref cast) => eval_expr(&cast.expr, program, state).cast_to(&cast.target_type),
         &il::Expr::FunctionCall(ref function_call) => eval_function_call(function_call, program, state),
         &il::Expr::ArrayElemRef(ref array_elem_ref) => eval_array_elem_ref(array_elem_ref, program, state),
         &il::Expr::VariableRef(ref variable_ref) => eval_variable_ref(variable_ref, state),
         &il::Expr::UnOp(ref un_op) => eval_un_op(un_op, program, state),
-        &il::Expr::BinOp(ref bin_op) => eval_bin_op(bin_op, program, state),
-        _ => panic!("Unrecognized expression: {:#?}", expr)
+        &il::Expr::BinOp(ref bin_op) => eval_bin_op(bin_op, program, state)
     }
 }
 
@@ -268,14 +268,14 @@ fn eval_array_elem_ref(array_elem_ref: &il::ArrayElemRef, program: &il::Program,
 
 fn eval_variable_ref(variable_ref: &il::VariableRef, state: &mut State) -> Value {
     match variable_ref {
-        &il::VariableRef::Global(index) => {
-            let variable = &state.globals[index];
+        &il::VariableRef::Global(ref global_variable_ref) => {
+            let variable = &state.globals[global_variable_ref.global_index];
             match variable {
                 &Variable::SingleVariable(ref single_variable) => single_variable.value.clone(),
                 _ => panic!("Variable was an array: {:#?}", variable_ref)
             }
         },
-        &il::VariableRef::Local(index) => state.stack[state.base_pointer as usize + index].clone()
+        &il::VariableRef::Local(ref local_variable_ref) => state.stack[state.base_pointer as usize + local_variable_ref.local_index].clone()
     }
 }
 
