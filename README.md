@@ -29,8 +29,6 @@ This code is licensed under the BSD2 license (see LICENSE).
 
 ## Screenshot(s)
 
-![screen shot 2016-01-24 at 9 34 24 am](https://cloud.githubusercontent.com/assets/3166056/12537811/d80a303e-c27d-11e5-8c4c-0c3b365b9ecd.png)
-
-![screen shot 2016-01-24 at 9 03 19 pm](https://cloud.githubusercontent.com/assets/3166056/12542892/0d90008e-c2de-11e5-964d-b3a32bda8bb5.png)
-
-![wnofwjjrzhps1g9d0pfumdktiyjzsop5-cz6buatuuaahake png_large](https://cloud.githubusercontent.com/assets/3166056/12873425/86ca973c-cdbc-11e5-9476-e7f115982770.png)
+[<img src="https://cloud.githubusercontent.com/assets/3166056/12537811/d80a303e-c27d-11e5-8c4c-0c3b365b9ecd.png" Width="200" />](https://cloud.githubusercontent.com/assets/3166056/12537811/d80a303e-c27d-11e5-8c4c-0c3b365b9ecd.png)
+[<img src="https://cloud.githubusercontent.com/assets/3166056/12542892/0d90008e-c2de-11e5-964d-b3a32bda8bb5.png" Width="200" />](https://cloud.githubusercontent.com/assets/3166056/12542892/0d90008e-c2de-11e5-964d-b3a32bda8bb5.png)
+[<img src="https://cloud.githubusercontent.com/assets/3166056/12873425/86ca973c-cdbc-11e5-9476-e7f115982770.png" Width="200" />](https://cloud.githubusercontent.com/assets/3166056/12873425/86ca973c-cdbc-11e5-9476-e7f115982770.png)
