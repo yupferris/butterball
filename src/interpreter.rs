@@ -221,27 +221,37 @@ fn perform_assignment(l_value: &il::LValue, value: Value, program: &il::Program,
             }
         },
         &il::LValue::ArrayElemRef(ref array_elem_ref) => {
-            match array_elem_ref {
-                &il::ArrayElemRef::Global(ref global_array_elem_ref) => {
-                    // TODO: Avoid allocation
-                    let dimensions = global_array_elem_ref.dimensions.iter()
-                        .map(|expr| eval_expr(expr, program, state))
-                        .collect::<Vec<_>>();
-                    match &mut state.globals[global_array_elem_ref.global_index] {
-                        &mut Variable::Array(ref mut array) => {
-                            let mut index = 0;
-                            let mut dim_multiplier = 1;
-                            for i in (0..dimensions.len()).rev() {
-                                let current_dimension_size = array.dimensions[i];
-                                index += dimensions[i].cast_to_integer().as_integer() * dim_multiplier;
-                                dim_multiplier *= current_dimension_size;
-                            }
-                            array.values[index as usize] = value;
-                        },
-                        _ => panic!("LValue was not an array: {:#?}", l_value)
-                    }
-                }
+            *index_array_elem_ref(array_elem_ref, program, state) = value;
+        }
+    }
+}
+
+fn index_array_elem_ref<'a>(array_elem_ref: &il::ArrayElemRef, program: &il::Program, state: &'a mut State) -> &'a mut Value {
+    match array_elem_ref {
+        &il::ArrayElemRef::Global(ref global_array_elem_ref) => {
+            let old_stack_pointer = state.stack.position;
+
+            for expr in global_array_elem_ref.dimensions.iter() {
+                let value = eval_expr(expr, program, state);
+                state.stack.push(value);
             }
+
+            let ret = match &mut state.globals[global_array_elem_ref.global_index] {
+                &mut Variable::Array(ref mut array) => {
+                    let mut index = 0;
+                    let mut dim_multiplier = 1;
+                    for (i, current_dimension_size) in array.dimensions.iter().enumerate().rev() {
+                        index += state.stack[old_stack_pointer + i].cast_to_integer().as_integer() * dim_multiplier;
+                        dim_multiplier *= *current_dimension_size;
+                    }
+                    &mut array.values[index as usize]
+                },
+                _ => panic!("Variable was not an array: {:#?}", array_elem_ref)
+            };
+
+            state.stack.position = old_stack_pointer;
+
+            ret
         }
     }
 }
@@ -303,35 +313,10 @@ fn eval_expr(expr: &il::Expr, program: &il::Program, state: &mut State) -> Value
         &il::Expr::String(ref value) => Value::String(value.clone()),
         &il::Expr::Cast(ref cast) => eval_expr(&cast.expr, program, state).cast_to(&cast.target_type),
         &il::Expr::FunctionCall(ref function_call) => eval_function_call(function_call, program, state),
-        &il::Expr::ArrayElemRef(ref array_elem_ref) => eval_array_elem_ref(array_elem_ref, program, state),
+        &il::Expr::ArrayElemRef(ref array_elem_ref) => index_array_elem_ref(array_elem_ref, program, state).clone(),
         &il::Expr::VariableRef(ref variable_ref) => eval_variable_ref(variable_ref, state),
         &il::Expr::UnOp(ref un_op) => eval_un_op(un_op, program, state),
         &il::Expr::BinOp(ref bin_op) => eval_bin_op(bin_op, program, state)
-    }
-}
-
-fn eval_array_elem_ref(array_elem_ref: &il::ArrayElemRef, program: &il::Program, state: &mut State) -> Value {
-    // TODO: Share code with interpret_assignment
-    match array_elem_ref {
-        &il::ArrayElemRef::Global(ref global_array_elem_ref) => {
-            // TODO: Avoid allocation
-            let dimensions = global_array_elem_ref.dimensions.iter()
-                .map(|expr| eval_expr(expr, program, state))
-                .collect::<Vec<_>>();
-            match &mut state.globals[global_array_elem_ref.global_index] {
-                &mut Variable::Array(ref mut array) => {
-                    let mut index = 0;
-                    let mut dim_multiplier = 1;
-                    for i in (0..dimensions.len()).rev() {
-                        let current_dimension_size = array.dimensions[i];
-                        index += dimensions[i].cast_to_integer().as_integer() * dim_multiplier;
-                        dim_multiplier *= current_dimension_size;
-                    }
-                    array.values[index as usize].clone()
-                },
-                _ => panic!("Variable was not an array: {:#?}", array_elem_ref)
-            }
-        }
     }
 }
 
