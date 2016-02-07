@@ -14,7 +14,7 @@ So, that's what this is. Of course, it's one of those "I'm bored on Sunday and w
 - [X] Parser
 - [X] Compiler
 - [X] Interpreter
-- [ ] Optimization and Cleanup
+- [ ] Optimization and Cleanup _(which will probably never be finished, hehe)_
 
 _Note that "complete" and "incomplete" are pretty loosely-defined here; see the issues for more info :)_
 
