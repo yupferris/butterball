@@ -1,6 +1,6 @@
-use super::il;
-use super::value::*;
-use super::context::*;
+use il;
+use value::*;
+use stdlib::context::*;
 
 use std::ops::{Index, IndexMut};
 

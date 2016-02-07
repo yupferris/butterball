@@ -1,5 +1,6 @@
 use value::Value;
-use context::Context;
+
+use super::context::Context;
 
 pub fn app_title(context: &mut Context, args: &[Value]) -> Value {
     context.window.app_title(args[0].as_string());

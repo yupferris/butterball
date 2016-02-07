@@ -1,31 +1,31 @@
-use super::value::*;
-use super::ast;
-use super::il;
-use super::impls;
+use value::*;
+use ast;
+use il;
+use impls;
 
 use std::collections::HashMap;
 
 // TODO: Proper error handling?
 pub fn compile(root: &ast::Root) -> il::Program {
-    let un_op_impls_pairs = impls::build_un_op_impls_table();
-    let un_op_impls_index_map =
-        un_op_impls_pairs.iter()
+    let un_op_pairs = impls::build_un_op_impls_table();
+    let un_op_index_map =
+        un_op_pairs.iter()
         .enumerate()
         .map(|(i, x)| (x.0.clone(), i))
         .collect::<HashMap<_, _>>();
     let un_op_impls_table =
-        un_op_impls_pairs.into_iter()
+        un_op_pairs.into_iter()
         .map(|x| x.1)
         .collect::<Vec<_>>();
 
-    let bin_op_impls_pairs = impls::build_bin_op_impls_table();
-    let bin_op_impls_index_map =
-        bin_op_impls_pairs.iter()
+    let bin_op_pairs = impls::build_bin_op_impls_table();
+    let bin_op_index_map =
+        bin_op_pairs.iter()
         .enumerate()
         .map(|(i, x)| (x.0.clone(), i))
         .collect::<HashMap<_, _>>();
     let bin_op_impls_table =
-        bin_op_impls_pairs.into_iter()
+        bin_op_pairs.into_iter()
         .map(|x| x.1)
         .collect::<Vec<_>>();
 
@@ -64,9 +64,9 @@ pub fn compile(root: &ast::Root) -> il::Program {
         function_asts.iter()
         .map(|x| compile_function(
             x,
-            &un_op_impls_index_map,
+            &un_op_index_map,
             &un_op_impls_table,
-            &bin_op_impls_index_map,
+            &bin_op_index_map,
             &bin_op_impls_table,
             &globals,
             &globals_index_map,
@@ -77,15 +77,14 @@ pub fn compile(root: &ast::Root) -> il::Program {
         .chain(function_impls.into_iter().map(|x| il::FunctionTableEntry::FunctionImpl(x)))
         .collect::<Vec<_>>();
 
-    // We build a main function as an AST node so later we can compile it like any other function declaration.
+    // We build a main function as an AST node so we can compile it like any other function
     let main_function_ast = build_main_function_ast(root);
-    //println!("Main function AST: {:#?}", main_function_ast);
     let main_function =
         compile_function(
             &main_function_ast,
-            &un_op_impls_index_map,
+            &un_op_index_map,
             &un_op_impls_table,
-            &bin_op_impls_index_map,
+            &bin_op_index_map,
             &bin_op_impls_table,
             &globals,
             &globals_index_map,
@@ -246,20 +245,24 @@ fn compile_function(
 
     let locals = compile_locals(function_decl, &signature, globals_index_map);
 
-    let body = function_decl.body.iter()
-        .map(|statement| compile_statement(
-            statement,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            &locals,
-            data_labels_map,
-            function_index_map,
-            function_types_table))
-        .collect::<Vec<_>>();
+    let body = {
+        let tables = Tables {
+            un_op_index_map: un_op_index_map,
+            un_op_impls_table: un_op_impls_table,
+            bin_op_index_map: bin_op_index_map,
+            bin_op_impls_table: bin_op_impls_table,
+            globals: globals,
+            globals_index_map: globals_index_map,
+            locals: &locals,
+            data_labels_map: data_labels_map,
+            function_index_map: function_index_map,
+            function_types_table: function_types_table
+        };
+
+        function_decl.body.iter()
+            .map(|statement| compile_statement(statement, &tables))
+            .collect::<Vec<_>>()
+    };
 
     let stack_frame_size = locals.len();
 
@@ -269,6 +272,19 @@ fn compile_function(
         stack_frame_size: stack_frame_size,
         body: body
     }
+}
+
+struct Tables<'a> {
+    un_op_index_map: &'a HashMap<(ast::Op, ValueType), usize>,
+    un_op_impls_table: &'a Vec<impls::FunctionImpl>,
+    bin_op_index_map: &'a HashMap<(ast::Op, ValueType, ValueType), usize>,
+    bin_op_impls_table: &'a Vec<impls::FunctionImpl>,
+    globals: &'a Vec<il::Variable>,
+    globals_index_map: &'a HashMap<String, usize>,
+    locals: &'a Vec<il::Variable>,
+    data_labels_map: &'a HashMap<String, usize>,
+    function_index_map: &'a HashMap<String, usize>,
+    function_types_table: &'a Vec<ValueType>
 }
 
 fn compile_locals(
@@ -376,149 +392,29 @@ fn compile_locals_visit_assignment(
     }
 }
 
-fn compile_statement(
-    statement: &ast::Statement,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    data_labels_map: &HashMap<String, usize>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::Statement {
-
+fn compile_statement(statement: &ast::Statement, tables: &Tables) -> il::Statement {
     match statement {
-        &ast::Statement::ArrayDecl(ref array_decl) =>
-            il::Statement::ArrayAlloc(
-                compile_array_alloc(
-                    array_decl,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    function_index_map,
-                    function_types_table)),
-        &ast::Statement::If(ref if_statement) =>
-            il::Statement::If(
-                compile_if_statement(
-                    if_statement,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    data_labels_map,
-                    function_index_map,
-                    function_types_table)),
-        &ast::Statement::While(ref while_statement) =>
-            il::Statement::While(
-                compile_while_statement(
-                    while_statement,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    data_labels_map,
-                    function_index_map,
-                    function_types_table)),
-        &ast::Statement::For(ref for_statement) =>
-            il::Statement::For(
-                compile_for_statement(
-                    for_statement,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    data_labels_map,
-                    function_index_map,
-                    function_types_table)),
-        &ast::Statement::Restore(ref label_name) => il::Statement::Restore(*data_labels_map.get(label_name).unwrap()),
-        &ast::Statement::Read(ref l_value) =>
-            il::Statement::Read(
-                compile_l_value(
-                    l_value,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    function_index_map,
-                    function_types_table)),
-        &ast::Statement::Assignment(ref assignment) =>
-            il::Statement::Assignment(
-                compile_assignment(
-                    assignment,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    function_index_map,
-                    function_types_table)),
-        &ast::Statement::FunctionCall(ref function_call) =>
-            il::Statement::FunctionCall(
-                compile_function_call(
-                    function_call,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    function_index_map,
-                    function_types_table)),
+        &ast::Statement::ArrayDecl(ref array_decl) => il::Statement::ArrayAlloc(compile_array_alloc(array_decl, tables)),
+        &ast::Statement::If(ref if_statement) => il::Statement::If(compile_if_statement(if_statement, tables)),
+        &ast::Statement::While(ref while_statement) => il::Statement::While(compile_while_statement(while_statement, tables)),
+        &ast::Statement::For(ref for_statement) => il::Statement::For(compile_for_statement(for_statement, tables)),
+        &ast::Statement::Restore(ref label_name) => il::Statement::Restore(*tables.data_labels_map.get(label_name).unwrap()),
+        &ast::Statement::Read(ref l_value) => il::Statement::Read(compile_l_value(l_value, tables)),
+        &ast::Statement::Assignment(ref assignment) => il::Statement::Assignment(compile_assignment(assignment, tables)),
+        &ast::Statement::FunctionCall(ref function_call) => il::Statement::FunctionCall(compile_function_call(function_call, tables)),
         &ast::Statement::End => il::Statement::End,
         _ => panic!("Unrecognized AST statement: {:#?}", statement)
     }
 }
 
-fn compile_array_alloc(
-    array_decl: &ast::ArrayDecl,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::ArrayAlloc {
-
+fn compile_array_alloc(array_decl: &ast::ArrayDecl, tables: &Tables) -> il::ArrayAlloc {
     // TODO: Resolve local arrays
     // TODO: Try to reuse code between resolve_variable_ref
-    match globals_index_map.get(&array_decl.name) {
+    match tables.globals_index_map.get(&array_decl.name) {
         Some(index) => il::ArrayAlloc {
             array_ref: il::ArrayRef::Global(*index),
             dimensions: array_decl.dimensions.iter()
-                .map(|x| compile_expr(
-                    x,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    function_index_map,
-                    function_types_table))
+                .map(|x| compile_expr(x, tables))
                 .collect::<Vec<_>>(),
             value_type: compile_value_type(&array_decl.type_specifier)
         },
@@ -526,138 +422,36 @@ fn compile_array_alloc(
     }
 }
 
-fn compile_if_statement(
-    if_statement: &ast::If,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    data_labels_map: &HashMap<String, usize>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::If {
-
+fn compile_if_statement(if_statement: &ast::If, tables: &Tables) -> il::If {
     il::If {
-        condition: compile_expr(
-            &if_statement.condition,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table),
+        condition: compile_expr(&if_statement.condition, tables),
         body: if_statement.body.iter()
-            .map(|statement|
-                 compile_statement(
-                     statement,
-                     un_op_index_map,
-                     un_op_impls_table,
-                     bin_op_index_map,
-                     bin_op_impls_table,
-                     globals,
-                     globals_index_map,
-                     locals,
-                     data_labels_map,
-                     function_index_map,
-                     function_types_table))
+            .map(|statement| compile_statement(statement, tables))
             .collect::<Vec<_>>(),
         else_clause: if_statement.else_clause.clone().map(
             |else_clause| else_clause.body.iter()
-                .map(|statement|
-                     compile_statement(
-                         statement,
-                         un_op_index_map,
-                         un_op_impls_table,
-                         bin_op_index_map,
-                         bin_op_impls_table,
-                         globals,
-                         globals_index_map,
-                         locals,
-                         data_labels_map,
-                         function_index_map,
-                         function_types_table))
+                .map(|statement| compile_statement(statement, tables))
                 .collect::<Vec<_>>())
     }
 }
 
-fn compile_while_statement(
-    while_statement: &ast::While,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    data_labels_map: &HashMap<String, usize>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::While {
-
+fn compile_while_statement(while_statement: &ast::While, tables: &Tables) -> il::While {
     il::While {
-        condition: compile_expr(
-            &while_statement.condition,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table),
+        condition: compile_expr(&while_statement.condition, tables),
         body: while_statement.body.iter()
-            .map(|statement|
-                 compile_statement(
-                     statement,
-                     un_op_index_map,
-                     un_op_impls_table,
-                     bin_op_index_map,
-                     bin_op_impls_table,
-                     globals,
-                     globals_index_map,
-                     locals,
-                     data_labels_map,
-                     function_index_map,
-                     function_types_table))
+            .map(|statement| compile_statement(statement, tables))
             .collect::<Vec<_>>(),
     }
 }
 
-fn compile_for_statement(
-    for_statement: &ast::For,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    data_labels_map: &HashMap<String, usize>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::For {
-
+fn compile_for_statement(for_statement: &ast::For, tables: &Tables) -> il::For {
     let index_l_value = &for_statement.initialization.l_value;
     let index_variable_ref = match index_l_value {
         &ast::LValue::VariableRef(ref variable_ref) => variable_ref.clone(),
         _ => panic!("Array element ref used as for loop iterator: {:#?}", index_l_value)
     };
     il::For {
-        initialization: compile_assignment(
-            &for_statement.initialization,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table),
+        initialization: compile_assignment(&for_statement.initialization, tables),
         condition: compile_expr(
             &Box::new(ast::Expr::BinOp(ast::BinOp {
                 op: ast::Op::LtEq,
@@ -666,16 +460,7 @@ fn compile_for_statement(
                     type_specifier: None
                 })),
                 rhs: for_statement.to.clone()
-            })),
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table),
+            })), tables),
         increment: compile_assignment(
             &ast::Assignment {
                 l_value: index_l_value.clone(),
@@ -684,75 +469,22 @@ fn compile_for_statement(
                     lhs: Box::new(ast::Expr::VariableRef(index_variable_ref.clone())),
                     rhs: for_statement.step.clone().unwrap_or(Box::new(ast::Expr::IntegerLiteral(1)))
                 }))
-            },
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table),
+            }, tables),
         body: for_statement.body.iter()
-            .map(|statement|
-                 compile_statement(
-                     statement,
-                     un_op_index_map,
-                     un_op_impls_table,
-                     bin_op_index_map,
-                     bin_op_impls_table,
-                     globals,
-                     globals_index_map,
-                     locals,
-                     data_labels_map,
-                     function_index_map,
-                     function_types_table))
+            .map(|statement| compile_statement(statement, tables))
             .collect::<Vec<_>>()
     }
 }
 
-fn compile_assignment(
-    assignment: &ast::Assignment,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::Assignment {
+fn compile_assignment(assignment: &ast::Assignment, tables: &Tables) -> il::Assignment {
+    let l_value = compile_l_value(&assignment.l_value, tables);
 
-    let l_value = compile_l_value(
-        &assignment.l_value,
-        un_op_index_map,
-        un_op_impls_table,
-        bin_op_index_map,
-        bin_op_impls_table,
-        globals,
-        globals_index_map,
-        locals,
-        function_index_map,
-        function_types_table);
-
-    let expr = compile_expr(
-        &assignment.expr,
-        un_op_index_map,
-        un_op_impls_table,
-        bin_op_index_map,
-        bin_op_impls_table,
-        globals,
-        globals_index_map,
-        locals,
-        function_index_map,
-        function_types_table);
-
+    let expr = compile_expr(&assignment.expr, tables);
     let value_type = l_value.value_type();
 
     il::Assignment {
         l_value: l_value,
-        expr: if get_expr_type(&expr) == value_type {
+        expr: if expr.value_type() == value_type {
             expr
         } else {
             Box::new(il::Expr::Cast(il::Cast {
@@ -763,19 +495,8 @@ fn compile_assignment(
     }
 }
 
-fn compile_function_call(
-    function_call: &ast::FunctionCallOrArrayElemRef,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::FunctionCall {
-
-    let function_index = match function_index_map.get(&function_call.function_name) {
+fn compile_function_call(function_call: &ast::FunctionCallOrArrayElemRef, tables: &Tables) -> il::FunctionCall {
+    let function_index = match tables.function_index_map.get(&function_call.function_name) {
         Some(index) => *index,
         _ => panic!("Unresolved function: {}", function_call.function_name)
     };
@@ -783,60 +504,21 @@ fn compile_function_call(
     il::FunctionCall {
         function_index: function_index,
         arguments: function_call.arguments.iter()
-            .map(|expr| compile_expr(
-                expr,
-                un_op_index_map,
-                un_op_impls_table,
-                bin_op_index_map,
-                bin_op_impls_table,
-                globals,
-                globals_index_map,
-                locals,
-                function_index_map,
-                function_types_table))
+            .map(|expr| compile_expr(expr, tables))
             .collect::<Vec<_>>(),
-        return_type: function_types_table[function_index]
+        return_type: tables.function_types_table[function_index]
     }
 }
 
-fn compile_l_value(
-    l_value: &ast::LValue,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::LValue {
-
+fn compile_l_value(l_value: &ast::LValue, tables: &Tables) -> il::LValue {
     match l_value {
-        &ast::LValue::VariableRef(ref variable_ref) =>
-            il::LValue::VariableRef(resolve_variable_ref(&variable_ref.name, globals, globals_index_map, locals)),
-        &ast::LValue::ArrayElemRef(ref array_elem_ref) =>
-            il::LValue::ArrayElemRef(
-                compile_array_elem_ref(
-                    array_elem_ref,
-                    un_op_index_map,
-                    un_op_impls_table,
-                    bin_op_index_map,
-                    bin_op_impls_table,
-                    globals,
-                    globals_index_map,
-                    locals,
-                    function_index_map,
-                    function_types_table))
+        &ast::LValue::VariableRef(ref variable_ref) => il::LValue::VariableRef(resolve_variable_ref(&variable_ref.name, tables)),
+        &ast::LValue::ArrayElemRef(ref array_elem_ref) => il::LValue::ArrayElemRef(compile_array_elem_ref(array_elem_ref, tables))
     }
 }
 
-fn resolve_variable_ref(
-    name: &String,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>) -> il::VariableRef {
-
-    for (index, local) in locals.iter().enumerate() {
+fn resolve_variable_ref(name: &String, tables: &Tables) -> il::VariableRef {
+    for (index, local) in tables.locals.iter().enumerate() {
         if name == local.name() {
             return il::VariableRef::Local(il::LocalVariableRef {
                 local_index: index,
@@ -845,154 +527,72 @@ fn resolve_variable_ref(
         }
     }
 
-    if let Some(index) = globals_index_map.get(name) {
+    if let Some(index) = tables.globals_index_map.get(name) {
         return il::VariableRef::Global(il::GlobalVariableRef {
             global_index: *index,
-            value_type: globals[*index].value_type()
+            value_type: tables.globals[*index].value_type()
         });
     }
 
     panic!("Unable to resolve variable ref: {}", name);
 }
 
-fn compile_array_elem_ref(
-    array_elem_ref: &ast::ArrayElemRef,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::ArrayElemRef {
-
+fn compile_array_elem_ref(array_elem_ref: &ast::ArrayElemRef, tables: &Tables) -> il::ArrayElemRef {
     let dimensions =
         array_elem_ref.dimensions.iter()
-        .map(|x| compile_expr(
-            x,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table))
+        .map(|x| compile_expr(x, tables))
         .collect::<Vec<_>>();
 
     // TODO: Resolve local arrays
     // TODO: Try to reuse code between resolve_variable_ref
-    if let Some(index) = globals_index_map.get(&array_elem_ref.array_name) {
+    if let Some(index) = tables.globals_index_map.get(&array_elem_ref.array_name) {
         return il::ArrayElemRef::Global(il::GlobalArrayElemRef {
             global_index: *index,
             dimensions: dimensions,
-            value_type: globals[*index].value_type()
+            value_type: tables.globals[*index].value_type()
         });
     }
 
     panic!("Unable to resolve array elem ref: {:?}", array_elem_ref);
 }
 
-fn compile_expr(
-    expr: &Box<ast::Expr>,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> Box<il::Expr> {
-
-    match **expr {
-        ast::Expr::FloatLiteral(value) => Box::new(il::Expr::Float(value)),
-        ast::Expr::IntegerLiteral(value) => Box::new(il::Expr::Integer(value)),
-        ast::Expr::BoolLiteral(value) => Box::new(il::Expr::Bool(value)),
-        ast::Expr::StringLiteral(ref value) => Box::new(il::Expr::String(value.clone())),
-        ast::Expr::FunctionCallOrArrayElemRef(ref function_call_or_array_elem_ref) =>
-            compile_function_call_or_array_elem_ref(
-                function_call_or_array_elem_ref,
-                un_op_index_map,
-                un_op_impls_table,
-                bin_op_index_map,
-                bin_op_impls_table,
-                globals,
-                globals_index_map,
-                locals,
-                function_index_map,
-                function_types_table),
-        ast::Expr::VariableRef(ref variable_ref) => compile_variable_ref(variable_ref, globals, globals_index_map, locals),
-        ast::Expr::UnOp(ref un_op) =>
-            Box::new(il::Expr::UnOp(compile_un_op(
-                un_op,
-                un_op_index_map,
-                un_op_impls_table,
-                bin_op_index_map,
-                bin_op_impls_table,
-                globals,
-                globals_index_map,
-                locals,
-                function_index_map,
-                function_types_table))),
-        ast::Expr::BinOp(ref bin_op) =>
-            Box::new(il::Expr::BinOp(compile_bin_op(
-                bin_op,
-                un_op_index_map,
-                un_op_impls_table,
-                bin_op_index_map,
-                bin_op_impls_table,
-                globals,
-                globals_index_map,
-                locals,
-                function_index_map,
-                function_types_table)))
+fn compile_expr(expr: &ast::Expr, tables: &Tables) -> Box<il::Expr> {
+    match expr {
+        &ast::Expr::FloatLiteral(value) => Box::new(il::Expr::Float(value)),
+        &ast::Expr::IntegerLiteral(value) => Box::new(il::Expr::Integer(value)),
+        &ast::Expr::BoolLiteral(value) => Box::new(il::Expr::Bool(value)),
+        &ast::Expr::StringLiteral(ref value) => Box::new(il::Expr::String(value.clone())),
+        &ast::Expr::FunctionCallOrArrayElemRef(ref function_call_or_array_elem_ref) =>
+            compile_function_call_or_array_elem_ref(function_call_or_array_elem_ref, tables),
+        &ast::Expr::VariableRef(ref variable_ref) => compile_variable_ref(variable_ref, tables),
+        &ast::Expr::UnOp(ref un_op) => Box::new(il::Expr::UnOp(compile_un_op(un_op, tables))),
+        &ast::Expr::BinOp(ref bin_op) => Box::new(il::Expr::BinOp(compile_bin_op(bin_op, tables)))
     }
 }
 
 fn compile_function_call_or_array_elem_ref(
     function_call_or_array_elem_ref: &ast::FunctionCallOrArrayElemRef,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> Box<il::Expr> {
+    tables: &Tables) -> Box<il::Expr> {
 
     let arguments_or_dimensions =
         function_call_or_array_elem_ref.arguments.iter()
-        .map(|x| compile_expr(
-            x,
-            un_op_index_map,
-            un_op_impls_table,
-            bin_op_index_map,
-            bin_op_impls_table,
-            globals,
-            globals_index_map,
-            locals,
-            function_index_map,
-            function_types_table))
+        .map(|x| compile_expr(x, tables))
         .collect::<Vec<_>>();
 
-    Box::new(match function_index_map.get(&function_call_or_array_elem_ref.function_name) {
+    Box::new(match tables.function_index_map.get(&function_call_or_array_elem_ref.function_name) {
         Some(index) => il::Expr::FunctionCall(il::FunctionCall {
             function_index: *index,
             arguments: arguments_or_dimensions,
-            return_type: function_types_table[*index]
+            return_type: tables.function_types_table[*index]
         }),
         _ => {
             // TODO: Resolve local arrays
             // TODO: Try to reuse code between resolve_variable_ref
-            match globals_index_map.get(&function_call_or_array_elem_ref.function_name) {
+            match tables.globals_index_map.get(&function_call_or_array_elem_ref.function_name) {
                 Some(index) => il::Expr::ArrayElemRef(il::ArrayElemRef::Global(il::GlobalArrayElemRef {
                     global_index: *index,
                     dimensions: arguments_or_dimensions,
-                    value_type: globals[*index].value_type()
+                    value_type: tables.globals[*index].value_type()
                 })),
                 _ => panic!("Unable to resolve function call or array elem ref: {:?}", function_call_or_array_elem_ref)
             }
@@ -1000,116 +600,41 @@ fn compile_function_call_or_array_elem_ref(
     })
 }
 
-fn compile_variable_ref(
-    variable_ref: &ast::VariableRef,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>) -> Box<il::Expr> {
-
-    Box::new(il::Expr::VariableRef(resolve_variable_ref(&variable_ref.name, globals, globals_index_map, locals)))
+fn compile_variable_ref(variable_ref: &ast::VariableRef, tables: &Tables) -> Box<il::Expr> {
+    Box::new(il::Expr::VariableRef(resolve_variable_ref(&variable_ref.name, tables)))
 }
 
-fn compile_un_op(
-    un_op: &ast::UnOp,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::UnOp {
-
-    let expr = compile_expr(
-        &un_op.expr,
-        un_op_index_map,
-        un_op_impls_table,
-        bin_op_index_map,
-        bin_op_impls_table,
-        globals,
-        globals_index_map,
-        locals,
-        function_index_map,
-        function_types_table);
-
-    let expr_type = get_expr_type(&expr);
+fn compile_un_op(un_op: &ast::UnOp, tables: &Tables) -> il::UnOp {
+    let expr = compile_expr(&un_op.expr, tables);
+    let expr_type = expr.value_type();
 
     let key = (un_op.op, expr_type);
-    if let Some(impl_index) = un_op_index_map.get(&key) {
+    if let Some(impl_index) = tables.un_op_index_map.get(&key) {
         il::UnOp {
             impl_index: *impl_index,
             expr: expr,
-            return_type: un_op_impls_table[*impl_index].return_type
+            return_type: tables.un_op_impls_table[*impl_index].return_type
         }
     } else {
         panic!("Unrecognized or unsupported un op for key: {:?}", key);
     }
 }
 
-fn compile_bin_op(
-    bin_op: &ast::BinOp,
-    un_op_index_map: &HashMap<(ast::Op, ValueType), usize>,
-    un_op_impls_table: &Vec<impls::FunctionImpl>,
-    bin_op_index_map: &HashMap<(ast::Op, ValueType, ValueType), usize>,
-    bin_op_impls_table: &Vec<impls::FunctionImpl>,
-    globals: &Vec<il::Variable>,
-    globals_index_map: &HashMap<String, usize>,
-    locals: &Vec<il::Variable>,
-    function_index_map: &HashMap<String, usize>,
-    function_types_table: &Vec<ValueType>) -> il::BinOp {
-
-    let lhs = compile_expr(
-        &bin_op.lhs,
-        un_op_index_map,
-        un_op_impls_table,
-        bin_op_index_map,
-        bin_op_impls_table,
-        globals,
-        globals_index_map,
-        locals,
-        function_index_map,
-        function_types_table);
-    let rhs = compile_expr(
-        &bin_op.rhs,
-        un_op_index_map,
-        un_op_impls_table,
-        bin_op_index_map,
-        bin_op_impls_table,
-        globals,
-        globals_index_map,
-        locals,
-        function_index_map,
-        function_types_table);
-
-    let lhs_type = get_expr_type(&lhs);
-    let rhs_type = get_expr_type(&rhs);
+fn compile_bin_op(bin_op: &ast::BinOp, tables: &Tables) -> il::BinOp {
+    let lhs = compile_expr(&bin_op.lhs, tables);
+    let rhs = compile_expr(&bin_op.rhs, tables);
+    let lhs_type = lhs.value_type();
+    let rhs_type = rhs.value_type();
 
     let key = (bin_op.op, lhs_type, rhs_type);
-    if let Some(impl_index) = bin_op_index_map.get(&key) {
+    if let Some(impl_index) = tables.bin_op_index_map.get(&key) {
         il::BinOp {
             impl_index: *impl_index,
             lhs: lhs,
             rhs: rhs,
-            return_type: bin_op_impls_table[*impl_index].return_type
+            return_type: tables.bin_op_impls_table[*impl_index].return_type
         }
     } else {
         panic!("Unrecognized or unsupported bin op for key: {:?}", key);
-    }
-}
-
-// TODO: Move to il
-fn get_expr_type(expr: &Box<il::Expr>) -> ValueType {
-    match **expr {
-        il::Expr::Float(_) => ValueType::Float,
-        il::Expr::Integer(_) => ValueType::Integer,
-        il::Expr::Bool(_) => ValueType::Bool,
-        il::Expr::String(_) => ValueType::String,
-        il::Expr::Cast(ref cast) => cast.target_type,
-        il::Expr::FunctionCall(ref function_call) => function_call.return_type,
-        il::Expr::ArrayElemRef(ref array_elem_ref) => array_elem_ref.value_type(),
-        il::Expr::VariableRef(ref variable_ref) => variable_ref.value_type(),
-        il::Expr::UnOp(ref un_op) => un_op.return_type,
-        il::Expr::BinOp(ref bin_op) => bin_op.return_type
     }
 }

@@ -1,5 +1,6 @@
 use value::Value;
-use context::Context;
+
+use super::context::Context;
 
 pub fn cls(context: &mut Context, _: &[Value]) -> Value {
     context.graphics.cls(&mut context.window);

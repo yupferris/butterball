@@ -2,7 +2,7 @@ use time;
 
 use ast;
 use value::*;
-use context::*;
+use stdlib::context::*;
 
 use stdlib::window_impls;
 use stdlib::graphics_impls;

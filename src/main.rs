@@ -9,7 +9,6 @@ mod parser;
 mod value;
 mod il;
 mod stdlib;
-mod context;
 mod impls;
 mod compiler;
 mod interpreter;

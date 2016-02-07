@@ -1,5 +1,5 @@
-use super::value::*;
-use super::impls::*;
+use value::*;
+use impls::FunctionImpl;
 
 #[derive(Debug)]
 pub struct Program {
@@ -200,6 +200,23 @@ pub enum Expr {
     VariableRef(VariableRef),
     UnOp(UnOp),
     BinOp(BinOp)
+}
+
+impl Expr {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            &Expr::Float(_) => ValueType::Float,
+            &Expr::Integer(_) => ValueType::Integer,
+            &Expr::Bool(_) => ValueType::Bool,
+            &Expr::String(_) => ValueType::String,
+            &Expr::Cast(ref cast) => cast.target_type,
+            &Expr::FunctionCall(ref function_call) => function_call.return_type,
+            &Expr::ArrayElemRef(ref array_elem_ref) => array_elem_ref.value_type(),
+            &Expr::VariableRef(ref variable_ref) => variable_ref.value_type(),
+            &Expr::UnOp(ref un_op) => un_op.return_type,
+            &Expr::BinOp(ref bin_op) => bin_op.return_type
+        }
+    }
 }
 
 // TODO: Merge with function call?
