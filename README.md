@@ -18,7 +18,7 @@ So, that's what this is. Of course, it's one of those "I'm bored on Sunday and w
 
 _Note that "complete" and "incomplete" are pretty loosely-defined here; see the issues for more info :)_
 
-And by the way, it's currently **SLOOOOOOW**. Seriously, like <10FPS slow. And there's bugs. And the code's not the greatest (though not the worst, either). But hey, I did it super quickly, and it's for fun, right?
+And by the way, it's currently **SLOOOOOOW**. Seriously, like <10FPS slow. And there's bugs. And the code's not the greatest in some places. But hey, I did it super quickly, and it's for fun, right?
 
 ## Resources
 - [BlitzBasic Full Foundation Tutorial](http://www.bettiesart.com/tc/blitz/)
