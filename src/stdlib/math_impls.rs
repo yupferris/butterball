@@ -20,3 +20,7 @@ pub fn degrees_to_radians(degrees: f32) -> f32 {
 pub fn cos(_context: &mut Context, args: &[Value]) -> Value {
     Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).cos())
 }
+
+pub fn sqr(_context: &mut Context, args: &[Value]) -> Value {
+    Value::Float(args[0].as_float().sqrt())
+}

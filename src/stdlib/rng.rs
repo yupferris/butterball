@@ -28,4 +28,8 @@ impl Rng {
 
         ((x as i32) % range) + low
     }
+
+    pub fn rnd(&mut self, low: f32, high: f32) -> f32 {
+        (self.rand(0, 100) as f32 / 100.0) * (high - low) + low
+    }
 }

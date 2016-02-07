@@ -484,14 +484,18 @@ fn compile_assignment(assignment: &ast::Assignment, tables: &Tables) -> il::Assi
 
     il::Assignment {
         l_value: l_value,
-        expr: if expr.value_type() == value_type {
-            expr
-        } else {
-            Box::new(il::Expr::Cast(il::Cast {
-                expr: expr,
-                target_type: value_type
-            }))
-        }
+        expr: insert_cast(expr, value_type)
+    }
+}
+
+fn insert_cast(expr: Box<il::Expr>, value_type: ValueType) -> Box<il::Expr> {
+    if expr.value_type() == value_type {
+        expr
+    } else {
+        Box::new(il::Expr::Cast(il::Cast {
+            expr: expr,
+            target_type: value_type
+        }))
     }
 }
 
@@ -504,6 +508,7 @@ fn compile_function_call(function_call: &ast::FunctionCallOrArrayElemRef, tables
     il::FunctionCall {
         function_index: function_index,
         arguments: function_call.arguments.iter()
+            // TODO: Insert casts for argument types
             .map(|expr| compile_expr(expr, tables))
             .collect::<Vec<_>>(),
         return_type: tables.function_types_table[function_index]
@@ -594,7 +599,7 @@ fn compile_function_call_or_array_elem_ref(
                     dimensions: arguments_or_dimensions,
                     value_type: tables.globals[*index].value_type()
                 })),
-                _ => panic!("Unable to resolve function call or array elem ref: {:?}", function_call_or_array_elem_ref)
+                _ => panic!("Unable to resolve function call or array elem ref: {:#?}", function_call_or_array_elem_ref)
             }
         }
     })

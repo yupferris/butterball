@@ -260,18 +260,21 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
     let function_table_entry = &program.function_table[function_call.function_index];
     match function_table_entry {
         &il::FunctionTableEntry::Function(ref function) => {
+            //println!("Evaluating function: {}", function.signature.name);
+
             let caller_base_pointer = state.base_pointer;
             let callee_base_pointer = state.stack.position;
 
-            for arg in function_call.arguments.iter() {
-                let value = eval_expr(arg, program, state);
+            // TODO: Remove casts when proper arg types are ensured by the compiler
+            for (expr, arg) in function_call.arguments.iter().zip(function.signature.args.iter()) {
+                let value = eval_expr(expr, program, state).cast_to(&arg.value_type);
                 state.stack.push(value);
             }
 
             state.stack.position += function.stack_frame_size - function_call.arguments.len();
 
             /*println!("---- current stack frame ----");
-            for i in state.base_pointer..state.stack.len() {
+            for i in state.base_pointer..state.stack.position {
                 println!("{:#?}", state.stack[i]);
             }
             println!("");*/
