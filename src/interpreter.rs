@@ -2,6 +2,10 @@ use super::il;
 use super::value::*;
 use super::context::*;
 
+use std::ops::{Index, IndexMut};
+
+const STACK_SIZE: usize = 4 * 1024 * 1024;
+
 pub fn interpret(program: &il::Program) {
     let mut state = State::new(program);
     interpret_function(&program.main_function, program, &mut state);
@@ -13,7 +17,7 @@ struct State {
     globals: Vec<Variable>,
 
     // TODO: Nest this part of the structure?
-    stack: Vec<Value>,
+    stack: Stack,
     base_pointer: usize,
 
     data_pointer: usize
@@ -40,11 +44,45 @@ impl State {
                 })
                 .collect::<Vec<_>>(),
 
-            stack: Vec::new(),
+            stack: Stack::new(),
             base_pointer: 0,
 
             data_pointer: 0
         }
+    }
+}
+
+struct Stack {
+    data: Box<[Value]>,
+    position: usize
+}
+
+impl Stack {
+    fn new() -> Stack {
+        Stack {
+            data: vec![Value::Unit; STACK_SIZE].into_boxed_slice(),
+            position: 0
+        }
+    }
+
+    fn push(&mut self, value: Value) {
+        let index = self.position;
+        self[index] = value;
+        self.position += 1;
+    }
+}
+
+impl Index<usize> for Stack {
+    type Output = Value;
+
+    fn index(&self, index: usize) -> &Value {
+        &self.data[index]
+    }
+}
+
+impl IndexMut<usize> for Stack {
+    fn index_mut(&mut self, index: usize) -> &mut Value {
+        &mut self.data[index]
     }
 }
 
@@ -213,19 +251,14 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
     match function_table_entry {
         &il::FunctionTableEntry::Function(ref function) => {
             let caller_base_pointer = state.base_pointer;
-            let callee_base_pointer = state.stack.len();
-
-            state.stack.reserve(function.stack_frame_size);
+            let callee_base_pointer = state.stack.position;
 
             for arg in function_call.arguments.iter() {
                 let value = eval_expr(arg, program, state);
                 state.stack.push(value);
             }
 
-            // TODO: Can this be optimized out somehow?
-            for _ in function_call.arguments.len()..function.stack_frame_size {
-                state.stack.push(Value::Unit);
-            }
+            state.stack.position += function.stack_frame_size - function_call.arguments.len();
 
             /*println!("---- current stack frame ----");
             for i in state.base_pointer..state.stack.len() {
@@ -239,24 +272,23 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
 
             interpret_function(function, program, state);
 
-            state.stack.truncate(callee_base_pointer);
+            state.stack.position = callee_base_pointer;
             state.base_pointer = caller_base_pointer;
 
             // TODO: Proper return types
             Value::Unit
         },
         &il::FunctionTableEntry::FunctionImpl(ref function_impl) => {
-            let callee_base_pointer = state.stack.len();
-
-            state.stack.reserve(function_call.arguments.len());
+            let callee_base_pointer = state.stack.position;
 
             for arg in function_call.arguments.iter() {
                 let value = eval_expr(arg, program, state);
                 state.stack.push(value);
             }
-            let ret = (function_impl.function)(&mut state.context, &state.stack[callee_base_pointer..]);
 
-            state.stack.truncate(callee_base_pointer);
+            let ret = (function_impl.function)(&mut state.context, &state.stack.data[callee_base_pointer..state.stack.position]);
+
+            state.stack.position = callee_base_pointer;
 
             ret
         }
@@ -319,13 +351,14 @@ fn eval_variable_ref(variable_ref: &il::VariableRef, state: &mut State) -> Value
 fn eval_un_op(un_op: &il::UnOp, program: &il::Program, state: &mut State) -> Value {
     let arg = eval_expr(&un_op.expr, program, state);
 
-    let callee_base_pointer = state.stack.len();
+    let callee_base_pointer = state.stack.position;
 
     state.stack.push(arg);
 
-    let ret = (program.un_op_impls_table[un_op.impl_index].function)(&mut state.context, &state.stack[callee_base_pointer..]);
+    let ret = (program.un_op_impls_table[un_op.impl_index].function)(
+        &mut state.context, &state.stack.data[callee_base_pointer..state.stack.position]);
 
-    state.stack.pop();
+    state.stack.position = callee_base_pointer;
 
     ret
 }
@@ -334,15 +367,15 @@ fn eval_bin_op(bin_op: &il::BinOp, program: &il::Program, state: &mut State) -> 
     let lhs_value = eval_expr(&bin_op.lhs, program, state);
     let rhs_value = eval_expr(&bin_op.rhs, program, state);
 
-    let callee_base_pointer = state.stack.len();
+    let callee_base_pointer = state.stack.position;
 
-    state.stack.reserve(2);
     state.stack.push(lhs_value);
     state.stack.push(rhs_value);
 
-    let ret = (program.bin_op_impls_table[bin_op.impl_index].function)(&mut state.context, &state.stack[callee_base_pointer..]);
+    let ret = (program.bin_op_impls_table[bin_op.impl_index].function)(
+        &mut state.context, &state.stack.data[callee_base_pointer..state.stack.position]);
 
-    state.stack.truncate(callee_base_pointer);
+    state.stack.position = callee_base_pointer;
 
     ret
 }
