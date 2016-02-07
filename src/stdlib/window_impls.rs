@@ -9,21 +9,25 @@ pub fn app_title(context: &mut Context, args: &[Value]) -> Value {
 }
 
 pub fn graphics(context: &mut Context, args: &[Value]) -> Value {
-    context.window.graphics(args[0].as_integer(), args[1].as_integer(), args[2].as_integer(), args[3].as_integer());
+    context.window.graphics(
+        &mut context.buffers,
+        &mut context.graphics,
+        args[0].as_integer(),
+        args[1].as_integer(),
+        args[2].as_integer(),
+        args[3].as_integer());
 
     Value::Unit
 }
 
 pub fn flip(context: &mut Context, _args: &[Value]) -> Value {
-    context.window.flip();
+    context.window.flip(&context.buffers);
 
     Value::Unit
 }
 
-pub fn back_buffer(_context: &mut Context, _args: &[Value]) -> Value {
-    println!("WARNING: BackBuffer called but not yet implemented");
-
-    Value::Integer(0)
+pub fn back_buffer(context: &mut Context, _args: &[Value]) -> Value {
+    Value::Integer(context.window.back_buffer())
 }
 
 pub fn hide_pointer(_context: &mut Context, _args: &[Value]) -> Value {

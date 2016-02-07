@@ -3,7 +3,7 @@ use value::Value;
 use super::context::Context;
 
 pub fn cls(context: &mut Context, _: &[Value]) -> Value {
-    context.graphics.cls(&mut context.window);
+    context.graphics.cls(&mut context.buffers);
 
     Value::Unit
 }
@@ -20,8 +20,8 @@ pub fn text(_: &mut Context, args: &[Value]) -> Value {
     Value::Unit
 }
 
-pub fn set_buffer(_context: &mut Context, _args: &[Value]) -> Value {
-    println!("WARNING: SetBuffer called but not yet implemented");
+pub fn set_buffer(context: &mut Context, args: &[Value]) -> Value {
+    context.graphics.set_buffer(args[0].as_integer());
 
     Value::Unit
 }
@@ -39,7 +39,8 @@ pub fn unlock_buffer(_: &mut Context, _: &[Value]) -> Value {
 }
 
 pub fn write_pixel_fast(context: &mut Context, args: &[Value]) -> Value {
-    context.graphics.write_pixel_fast(&mut context.window, args[0].as_integer(), args[1].as_integer(), args[2].as_integer());
+    let buffer_handle = if args.len() == 4 { Some(args[3].as_integer()) } else { None };
+    context.graphics.write_pixel_fast(&mut context.buffers, args[0].as_integer(), args[1].as_integer(), args[2].as_integer(), buffer_handle);
 
     Value::Unit
 }

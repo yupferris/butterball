@@ -1,15 +1,17 @@
 use minifb;
 
+use super::buffers::Buffers;
+use super::graphics::Graphics;
+
 #[derive(Default)]
 pub struct Window {
     app_title: String,
 
     window: Option<minifb::Window>,
-    // TODO: Make private
-    pub width: i32,
-    pub height: i32,
+    width: i32,
+    height: i32,
 
-    pub back_buffer: Vec<u32> // TODO: Proper buffer
+    back_buffer_handle: usize
 }
 
 impl Window {
@@ -18,13 +20,17 @@ impl Window {
         println!("New app title: \"{}\"", self.app_title);
     }
 
-    pub fn graphics(&mut self, width: i32, height: i32, bits: i32, window_mode: i32) {
+    pub fn graphics(&mut self, buffers: &mut Buffers, graphics: &mut Graphics, width: i32, height: i32, bits: i32, window_mode: i32) {
         println!(
             "Graphics called: {}, {}, {}, {} (ignoring bits and window mode)",
             width,
             height,
             bits,
             window_mode);
+
+        if self.window.is_some() {
+            buffers.free(self.back_buffer_handle);
+        }
 
         self.window =
             Some(minifb::Window::new(
@@ -35,16 +41,23 @@ impl Window {
 
         self.width = width;
         self.height = height;
-        self.back_buffer = vec![0; (width * height) as usize];
+
+        self.back_buffer_handle = buffers.alloc(width, height);
+
+        graphics.set_buffer(self.back_buffer_handle as i32);
     }
 
-    pub fn flip(&mut self) {
+    pub fn flip(&mut self, buffers: &Buffers) {
         println!("WARNING: Flip argument ignored");
 
         // TODO: It'd be more correct to actually swap between two buffers
         if let Some(ref mut window) = self.window {
-            window.update(&self.back_buffer);
+            window.update(&buffers[self.back_buffer_handle].data);
         }
+    }
+
+    pub fn back_buffer(&self) -> i32 {
+        self.back_buffer_handle as i32
     }
 
     pub fn key_down(&mut self, key: i32) -> bool {
