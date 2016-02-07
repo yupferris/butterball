@@ -1,15 +1,14 @@
-use time;
-
 use ast;
 use value::*;
 use stdlib::context::*;
 
 use stdlib::window_impls;
 use stdlib::graphics_impls;
+use stdlib::rng_impls;
+use stdlib::math_impls;
+use stdlib::time_impls;
 
 use std::fmt;
-
-use std::f32::consts;
 
 // TODO: Better name?
 pub struct FunctionImpl {
@@ -43,17 +42,6 @@ pub fn build_impls_table() -> Vec<FunctionImpl> {
     vec![
         FunctionImpl::new(String::from("Float"), Box::new(float_cast), ValueType::Float),
 
-        FunctionImpl::new(String::from("Abs"), Box::new(abs), ValueType::Float),
-
-        FunctionImpl::new(String::from("Sin"), Box::new(sin), ValueType::Float),
-        FunctionImpl::new(String::from("Cos"), Box::new(cos), ValueType::Float),
-
-        FunctionImpl::new(String::from("SeedRnd"), Box::new(seed_rnd), ValueType::Unit),
-        FunctionImpl::new(String::from("Rand"), Box::new(rand), ValueType::Integer),
-
-        FunctionImpl::new(String::from("MilliSecs"), Box::new(milli_secs), ValueType::Integer),
-
-        // TODO: Move specific impl tables to their respective modules
         FunctionImpl::new(String::from("AppTitle"), Box::new(window_impls::app_title), ValueType::Unit),
         FunctionImpl::new(String::from("Graphics"), Box::new(window_impls::graphics), ValueType::Unit),
         FunctionImpl::new(String::from("Flip"), Box::new(window_impls::flip), ValueType::Unit),
@@ -64,14 +52,22 @@ pub fn build_impls_table() -> Vec<FunctionImpl> {
         FunctionImpl::new(String::from("MouseX"), Box::new(window_impls::mouse_x), ValueType::Integer),
         FunctionImpl::new(String::from("MouseY"), Box::new(window_impls::mouse_y), ValueType::Integer),
 
-        // TODO: Move specific impl tables to their respective modules
         FunctionImpl::new(String::from("Cls"), Box::new(graphics_impls::cls), ValueType::Unit),
         FunctionImpl::new(String::from("Color"), Box::new(graphics_impls::color), ValueType::Unit),
         FunctionImpl::new(String::from("Text"), Box::new(graphics_impls::text), ValueType::Unit),
         FunctionImpl::new(String::from("SetBuffer"), Box::new(graphics_impls::set_buffer), ValueType::Unit),
         FunctionImpl::new(String::from("LockBuffer"), Box::new(graphics_impls::lock_buffer), ValueType::Unit),
         FunctionImpl::new(String::from("UnlockBuffer"), Box::new(graphics_impls::unlock_buffer), ValueType::Unit),
-        FunctionImpl::new(String::from("WritePixelFast"), Box::new(graphics_impls::write_pixel_fast), ValueType::Unit)]
+        FunctionImpl::new(String::from("WritePixelFast"), Box::new(graphics_impls::write_pixel_fast), ValueType::Unit),
+
+        FunctionImpl::new(String::from("SeedRnd"), Box::new(rng_impls::seed_rnd), ValueType::Unit),
+        FunctionImpl::new(String::from("Rand"), Box::new(rng_impls::rand), ValueType::Integer),
+
+        FunctionImpl::new(String::from("Abs"), Box::new(math_impls::abs), ValueType::Float),
+        FunctionImpl::new(String::from("Sin"), Box::new(math_impls::sin), ValueType::Float),
+        FunctionImpl::new(String::from("Cos"), Box::new(math_impls::cos), ValueType::Float),
+
+        FunctionImpl::new(String::from("MilliSecs"), Box::new(time_impls::milli_secs), ValueType::Integer)]
 }
 
 fn float_cast(_: &mut Context, args: &[Value]) -> Value {
@@ -81,51 +77,6 @@ fn float_cast(_: &mut Context, args: &[Value]) -> Value {
         &Value::Float(x) => x,
         _ => panic!("Unable to cast value to float: {:?}", arg)
     })
-}
-
-// TODO: Support type overloads
-fn abs(_: &mut Context, args: &[Value]) -> Value {
-    Value::Float(args[0].as_float().abs())
-}
-
-fn sin(_: &mut Context, args: &[Value]) -> Value {
-    Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).sin())
-}
-
-fn degrees_to_radians(degrees: f32) -> f32 {
-    degrees / 180.0 * consts::PI
-}
-
-fn cos(_: &mut Context, args: &[Value]) -> Value {
-    Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).cos())
-}
-fn seed_rnd(context: &mut Context, args: &[Value]) -> Value {
-    context.rng_state = 0xffff_ffff_0000_0000 | (args[0].as_integer() as u64);
-
-    Value::Unit
-}
-
-fn rand(context: &mut Context, args: &[Value]) -> Value {
-    // xorshift* prng
-    let mut x = context.rng_state;
-    x ^= x >> 12;
-    x ^= x >> 25;
-    x ^= x >> 27;
-    x *= 2685821657736338717;
-    context.rng_state = x;
-
-    let (low, high) = match args.len() {
-        1 => (0, args[0].as_integer()),
-        2 => (args[0].as_integer(), args[1].as_integer()),
-        _ => panic!("Invalid number of arguments to Rand: {}", args.len())
-    };
-    let range = high - low + 1;
-
-    Value::Integer(((x as i32) % range) + low)
-}
-
-fn milli_secs(_: &mut Context, _: &[Value]) -> Value {
-    Value::Integer((time::precise_time_ns() / 1000000) as i32)
 }
 
 pub fn build_un_op_impls_table() -> Vec<((ast::Op, ValueType), FunctionImpl)> {
