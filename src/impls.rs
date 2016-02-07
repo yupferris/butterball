@@ -12,14 +12,14 @@ use std::f32::consts;
 // TODO: Better name?
 pub struct FunctionImpl {
     pub name: String,
-    pub function: Box<Fn(&mut Context, &Vec<Value>) -> Value>,
+    pub function: Box<Fn(&mut Context, &[Value]) -> Value>,
     pub return_type: ValueType
 }
 
 impl FunctionImpl {
     pub fn new(
         name: String,
-        function: Box<Fn(&mut Context, &Vec<Value>) -> Value>,
+        function: Box<Fn(&mut Context, &[Value]) -> Value>,
         return_type: ValueType) -> FunctionImpl {
 
         FunctionImpl {
@@ -77,7 +77,7 @@ pub fn build_impls_table() -> Vec<FunctionImpl> {
         FunctionImpl::new(String::from("Text"), Box::new(text), ValueType::Unit)]
 }
 
-fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
+fn float_cast(_: &mut Context, args: &[Value]) -> Value {
     let arg = &args[0];
     Value::Float(match arg {
         &Value::Integer(x) => x as f32,
@@ -87,11 +87,11 @@ fn float_cast(_: &mut Context, args: &Vec<Value>) -> Value {
 }
 
 // TODO: Support type overloads
-fn abs(_: &mut Context, args: &Vec<Value>) -> Value {
+fn abs(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float().abs())
 }
 
-fn sin(_: &mut Context, args: &Vec<Value>) -> Value {
+fn sin(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).sin())
 }
 
@@ -99,18 +99,18 @@ fn degrees_to_radians(degrees: f32) -> f32 {
     degrees / 180.0 * consts::PI
 }
 
-fn cos(_: &mut Context, args: &Vec<Value>) -> Value {
+fn cos(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).cos())
 }
 
-fn app_title(context: &mut Context, args: &Vec<Value>) -> Value {
+fn app_title(context: &mut Context, args: &[Value]) -> Value {
     context.app_title = args[0].as_string();
     println!("New app title: \"{}\"", context.app_title);
 
     Value::Unit
 }
 
-fn graphics(context: &mut Context, args: &Vec<Value>) -> Value {
+fn graphics(context: &mut Context, args: &[Value]) -> Value {
     let width = args[0].as_integer();
     let height = args[1].as_integer();
     let bits = args[2].as_integer();
@@ -136,25 +136,25 @@ fn graphics(context: &mut Context, args: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn set_buffer(_context: &mut Context, _args: &Vec<Value>) -> Value {
+fn set_buffer(_context: &mut Context, _args: &[Value]) -> Value {
     println!("WARNING: SetBuffer called but not yet implemented");
 
     Value::Unit
 }
 
-fn back_buffer(_context: &mut Context, _args: &Vec<Value>) -> Value {
+fn back_buffer(_context: &mut Context, _args: &[Value]) -> Value {
     println!("WARNING: BackBuffer called but not yet implemented");
 
     Value::Integer(0)
 }
 
-fn lock_buffer(_: &mut Context, _: &Vec<Value>) -> Value {
+fn lock_buffer(_: &mut Context, _: &[Value]) -> Value {
     println!("LockBuffer called (and ignored)");
 
     Value::Unit
 }
 
-fn write_pixel_fast(context: &mut Context, args: &Vec<Value>) -> Value {
+fn write_pixel_fast(context: &mut Context, args: &[Value]) -> Value {
     let x = args[0].as_integer();
     let y = args[1].as_integer();
     let color = args[2].as_integer() as u32;
@@ -164,25 +164,25 @@ fn write_pixel_fast(context: &mut Context, args: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn unlock_buffer(_: &mut Context, _: &Vec<Value>) -> Value {
+fn unlock_buffer(_: &mut Context, _: &[Value]) -> Value {
     println!("UnlockBuffer called (and ignored)");
 
     Value::Unit
 }
 
-fn hide_pointer(_context: &mut Context, _args: &Vec<Value>) -> Value {
+fn hide_pointer(_context: &mut Context, _args: &[Value]) -> Value {
     println!("WARNING: HidePointer called but not yet implemented");
 
     Value::Integer(0)
 }
 
-fn seed_rnd(context: &mut Context, args: &Vec<Value>) -> Value {
+fn seed_rnd(context: &mut Context, args: &[Value]) -> Value {
     context.rng_state = 0xffff_ffff_0000_0000 | (args[0].as_integer() as u64);
 
     Value::Unit
 }
 
-fn rand(context: &mut Context, args: &Vec<Value>) -> Value {
+fn rand(context: &mut Context, args: &[Value]) -> Value {
     // xorshift* prng
     let mut x = context.rng_state;
     x ^= x >> 12;
@@ -201,11 +201,11 @@ fn rand(context: &mut Context, args: &Vec<Value>) -> Value {
     Value::Integer(((x as i32) % range) + low)
 }
 
-fn milli_secs(_: &mut Context, _: &Vec<Value>) -> Value {
+fn milli_secs(_: &mut Context, _: &[Value]) -> Value {
     Value::Integer((time::precise_time_ns() / 1000000) as i32)
 }
 
-fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
+fn key_down(context: &mut Context, args: &[Value]) -> Value {
     if let Some(ref mut window) = context.window {
         Value::Bool(window.is_key_down(match args[0].as_integer() {
             1 => Key::Escape,
@@ -220,7 +220,7 @@ fn key_down(context: &mut Context, args: &Vec<Value>) -> Value {
     }
 }
 
-fn mouse_down(context: &mut Context, args: &Vec<Value>) -> Value {
+fn mouse_down(context: &mut Context, args: &[Value]) -> Value {
     Value::Bool(if let Some(ref mut window) = context.window {
         let button_index = args[0].as_integer();
         window.get_mouse_down(match button_index {
@@ -234,7 +234,7 @@ fn mouse_down(context: &mut Context, args: &Vec<Value>) -> Value {
     })
 }
 
-fn mouse_x(context: &mut Context, _args: &Vec<Value>) -> Value {
+fn mouse_x(context: &mut Context, _args: &[Value]) -> Value {
     Value::Integer(if let Some(ref mut window) = context.window {
         match window.get_mouse_pos(MouseMode::Clamp) {
             Some((x, _)) => x as i32,
@@ -245,7 +245,7 @@ fn mouse_x(context: &mut Context, _args: &Vec<Value>) -> Value {
     })
 }
 
-fn mouse_y(context: &mut Context, _args: &Vec<Value>) -> Value {
+fn mouse_y(context: &mut Context, _args: &[Value]) -> Value {
     Value::Integer(if let Some(ref mut window) = context.window {
         match window.get_mouse_pos(MouseMode::Clamp) {
             Some((_, y)) => y as i32,
@@ -256,7 +256,7 @@ fn mouse_y(context: &mut Context, _args: &Vec<Value>) -> Value {
     })
 }
 
-fn cls(context: &mut Context, _: &Vec<Value>) -> Value {
+fn cls(context: &mut Context, _: &[Value]) -> Value {
     for pixel in context.back_buffer.iter_mut() {
         *pixel = 0;
     }
@@ -264,7 +264,7 @@ fn cls(context: &mut Context, _: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn flip(context: &mut Context, _: &Vec<Value>) -> Value {
+fn flip(context: &mut Context, _: &[Value]) -> Value {
     println!("WARNING: Flip argument ignored");
 
     // TODO: It'd be more correct to actually swap between two buffers
@@ -276,13 +276,13 @@ fn flip(context: &mut Context, _: &Vec<Value>) -> Value {
     Value::Unit
 }
 
-fn color(_: &mut Context, _: &Vec<Value>) -> Value {
+fn color(_: &mut Context, _: &[Value]) -> Value {
     println!("Color called (and ignored)");
 
     Value::Unit
 }
 
-fn text(_: &mut Context, args: &Vec<Value>) -> Value {
+fn text(_: &mut Context, args: &[Value]) -> Value {
     println!("Text called; drawing was ignored: {}, {}, {:?}", args[0].as_integer(), args[1].as_integer(), args[2].as_string());
 
     Value::Unit
@@ -296,15 +296,15 @@ pub fn build_un_op_impls_table() -> Vec<((ast::Op, ValueType), FunctionImpl)> {
         ((ast::Op::Neg, ValueType::Float), FunctionImpl::new(String::from("un_op_neg_float"), Box::new(un_op_neg_float), ValueType::Float))]
 }
 
-fn un_op_not_bool(_: &mut Context, args: &Vec<Value>) -> Value {
+fn un_op_not_bool(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(!args[0].as_bool())
 }
 
-fn un_op_neg_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn un_op_neg_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(-args[0].as_integer())
 }
 
-fn un_op_neg_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn un_op_neg_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(-args[0].as_float())
 }
 
@@ -378,110 +378,110 @@ pub fn build_bin_op_impls_table() -> Vec<((ast::Op, ValueType, ValueType), Funct
          FunctionImpl::new(String::from("bin_op_shr_float_int"), Box::new(bin_op_shr_float_int), ValueType::Integer))]
 }
 
-fn bin_op_lt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_lt_eq_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_integer() <= args[1].as_integer())
 }
 
-fn bin_op_gt_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_gt_eq_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_integer() >= args[1].as_integer())
 }
 
-fn bin_op_gt_eq_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_gt_eq_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_float() >= (args[1].as_integer() as f32))
 }
 
-fn bin_op_lt_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_lt_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_integer() < args[1].as_integer())
 }
 
-fn bin_op_lt_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_lt_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_float() < (args[1].as_integer() as f32))
 }
 
-fn bin_op_gt_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_gt_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_integer() > args[1].as_integer())
 }
 
-fn bin_op_gt_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_gt_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_float() > (args[1].as_integer() as f32))
 }
 
-fn bin_op_eq_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_eq_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_integer() == args[1].as_integer())
 }
 
-fn bin_op_and_bool_bool(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_and_bool_bool(_: &mut Context, args: &[Value]) -> Value {
     Value::Bool(args[0].as_bool() && args[1].as_bool())
 }
 
-fn bin_op_add_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_add_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(args[0].as_integer() + args[1].as_integer())
 }
 
-fn bin_op_add_int_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_add_int_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float((args[0].as_integer() as f32) + args[1].as_float())
 }
 
-fn bin_op_add_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_add_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() + (args[1].as_integer() as f32))
 }
 
-fn bin_op_add_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_add_float_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() + args[1].as_float())
 }
 
-fn bin_op_add_int_string(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_add_int_string(_: &mut Context, args: &[Value]) -> Value {
     Value::String(format!("{}{}", args[0].as_integer(), args[1].as_string()))
 }
 
-fn bin_op_sub_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_sub_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(args[0].as_integer() - args[1].as_integer())
 }
 
-fn bin_op_sub_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_sub_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() - (args[1].as_integer() as f32))
 }
 
-fn bin_op_sub_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_sub_float_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() - args[1].as_float())
 }
 
-fn bin_op_mul_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_mul_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(args[0].as_integer() * args[1].as_integer())
 }
 
-fn bin_op_mul_int_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_mul_int_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float((args[0].as_integer() as f32) * args[1].as_float())
 }
 
-fn bin_op_mul_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_mul_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() * (args[1].as_integer() as f32))
 }
 
-fn bin_op_mul_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_mul_float_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() * args[1].as_float())
 }
 
-fn bin_op_div_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_div_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(args[0].as_integer() / args[1].as_integer())
 }
 
-fn bin_op_div_float_float(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_div_float_float(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(args[0].as_float() / args[1].as_float())
 }
 
-fn bin_op_shl_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_shl_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(args[0].as_integer() << args[1].as_integer())
 }
 
-fn bin_op_shl_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_shl_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer((args[0].as_float() as i32) << args[1].as_integer())
 }
 
-fn bin_op_shr_int_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_shr_int_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer(args[0].as_integer() >> args[1].as_integer())
 }
 
-fn bin_op_shr_float_int(_: &mut Context, args: &Vec<Value>) -> Value {
+fn bin_op_shr_float_int(_: &mut Context, args: &[Value]) -> Value {
     Value::Integer((args[0].as_float() as i32) >> args[1].as_integer())
 }

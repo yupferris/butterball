@@ -14,7 +14,7 @@ struct State {
 
     // TODO: Nest this part of the structure?
     stack: Vec<Value>,
-    base_pointer: i32,
+    base_pointer: usize,
 
     data_pointer: usize
 }
@@ -178,7 +178,7 @@ fn perform_assignment(l_value: &il::LValue, value: Value, program: &il::Program,
                 },
                 &il::VariableRef::Local(ref local_variable_ref) => {
                     // TODO: Support local arrays
-                    state.stack[state.base_pointer as usize + local_variable_ref.local_index] = value;
+                    state.stack[state.base_pointer + local_variable_ref.local_index] = value;
                 }
             }
         },
@@ -212,8 +212,8 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
     let function_table_entry = &program.function_table[function_call.function_index];
     match function_table_entry {
         &il::FunctionTableEntry::Function(ref function) => {
-            state.stack.push(Value::Integer(state.base_pointer));
-            let callee_base_pointer = state.stack.len() as i32;
+            let caller_base_pointer = state.base_pointer;
+            let callee_base_pointer = state.stack.len();
 
             state.stack.reserve(function.stack_frame_size);
 
@@ -228,7 +228,7 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
             }
 
             /*println!("---- current stack frame ----");
-            for i in (state.base_pointer as usize)..state.stack.len() {
+            for i in state.base_pointer..state.stack.len() {
                 println!("{:#?}", state.stack[i]);
             }
             println!("");*/
@@ -239,18 +239,26 @@ fn eval_function_call(function_call: &il::FunctionCall, program: &il::Program, s
 
             interpret_function(function, program, state);
 
-            state.stack.truncate(state.base_pointer as usize);
-            state.base_pointer = state.stack.pop().unwrap().as_integer();
+            state.stack.truncate(callee_base_pointer);
+            state.base_pointer = caller_base_pointer;
 
             // TODO: Proper return types
             Value::Unit
         },
         &il::FunctionTableEntry::FunctionImpl(ref function_impl) => {
-            // TODO: Use stack to avoid allocation
-            let arguments = function_call.arguments.iter()
-                .map(|x| eval_expr(x, program, state))
-                .collect::<Vec<_>>();
-            (function_impl.function)(&mut state.context, &arguments)
+            let callee_base_pointer = state.stack.len();
+
+            state.stack.reserve(function_call.arguments.len());
+
+            for arg in function_call.arguments.iter() {
+                let value = eval_expr(arg, program, state);
+                state.stack.push(value);
+            }
+            let ret = (function_impl.function)(&mut state.context, &state.stack[callee_base_pointer..]);
+
+            state.stack.truncate(callee_base_pointer);
+
+            ret
         }
     }
 }
@@ -310,13 +318,31 @@ fn eval_variable_ref(variable_ref: &il::VariableRef, state: &mut State) -> Value
 
 fn eval_un_op(un_op: &il::UnOp, program: &il::Program, state: &mut State) -> Value {
     let arg = eval_expr(&un_op.expr, program, state);
-    // TODO: Use stack to avoid allocation
-    (program.un_op_impls_table[un_op.impl_index].function)(&mut state.context, &vec![arg])
+
+    let callee_base_pointer = state.stack.len();
+
+    state.stack.push(arg);
+
+    let ret = (program.un_op_impls_table[un_op.impl_index].function)(&mut state.context, &state.stack[callee_base_pointer..]);
+
+    state.stack.pop();
+
+    ret
 }
 
 fn eval_bin_op(bin_op: &il::BinOp, program: &il::Program, state: &mut State) -> Value {
     let lhs_value = eval_expr(&bin_op.lhs, program, state);
     let rhs_value = eval_expr(&bin_op.rhs, program, state);
-    // TODO: Use stack to avoid allocation
-    (program.bin_op_impls_table[bin_op.impl_index].function)(&mut state.context, &vec![lhs_value, rhs_value])
+
+    let callee_base_pointer = state.stack.len();
+
+    state.stack.reserve(2);
+    state.stack.push(lhs_value);
+    state.stack.push(rhs_value);
+
+    let ret = (program.bin_op_impls_table[bin_op.impl_index].function)(&mut state.context, &state.stack[callee_base_pointer..]);
+
+    state.stack.truncate(callee_base_pointer);
+
+    ret
 }
