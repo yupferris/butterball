@@ -1,9 +1,11 @@
-use super::minifb::{Window, Scale, Key, MouseButton, MouseMode};
-use super::time;
+use time;
 
-use super::ast;
-use super::value::*;
-use super::context::*;
+use ast;
+use value::*;
+use context::*;
+
+use stdlib::window_impls;
+use stdlib::graphics_impls;
 
 use std::fmt;
 
@@ -46,35 +48,30 @@ pub fn build_impls_table() -> Vec<FunctionImpl> {
         FunctionImpl::new(String::from("Sin"), Box::new(sin), ValueType::Float),
         FunctionImpl::new(String::from("Cos"), Box::new(cos), ValueType::Float),
 
-        FunctionImpl::new(String::from("AppTitle"), Box::new(app_title), ValueType::Unit),
-        FunctionImpl::new(String::from("Graphics"), Box::new(graphics), ValueType::Unit),
-
-        FunctionImpl::new(String::from("SetBuffer"), Box::new(set_buffer), ValueType::Unit),
-        FunctionImpl::new(String::from("BackBuffer"), Box::new(back_buffer), ValueType::Integer),
-
-        FunctionImpl::new(String::from("LockBuffer"), Box::new(lock_buffer), ValueType::Unit),
-        FunctionImpl::new(String::from("UnlockBuffer"), Box::new(unlock_buffer), ValueType::Unit),
-
-        FunctionImpl::new(String::from("WritePixelFast"), Box::new(write_pixel_fast), ValueType::Unit),
-
-        FunctionImpl::new(String::from("HidePointer"), Box::new(hide_pointer), ValueType::Unit),
-
         FunctionImpl::new(String::from("SeedRnd"), Box::new(seed_rnd), ValueType::Unit),
         FunctionImpl::new(String::from("Rand"), Box::new(rand), ValueType::Integer),
 
         FunctionImpl::new(String::from("MilliSecs"), Box::new(milli_secs), ValueType::Integer),
 
-        FunctionImpl::new(String::from("KeyDown"), Box::new(key_down), ValueType::Bool),
+        // TODO: Move specific impl tables to their respective modules
+        FunctionImpl::new(String::from("AppTitle"), Box::new(window_impls::app_title), ValueType::Unit),
+        FunctionImpl::new(String::from("Graphics"), Box::new(window_impls::graphics), ValueType::Unit),
+        FunctionImpl::new(String::from("Flip"), Box::new(window_impls::flip), ValueType::Unit),
+        FunctionImpl::new(String::from("BackBuffer"), Box::new(window_impls::back_buffer), ValueType::Integer),
+        FunctionImpl::new(String::from("HidePointer"), Box::new(window_impls::hide_pointer), ValueType::Unit),
+        FunctionImpl::new(String::from("KeyDown"), Box::new(window_impls::key_down), ValueType::Bool),
+        FunctionImpl::new(String::from("MouseDown"), Box::new(window_impls::mouse_down), ValueType::Bool),
+        FunctionImpl::new(String::from("MouseX"), Box::new(window_impls::mouse_x), ValueType::Integer),
+        FunctionImpl::new(String::from("MouseY"), Box::new(window_impls::mouse_y), ValueType::Integer),
 
-        FunctionImpl::new(String::from("MouseDown"), Box::new(mouse_down), ValueType::Bool),
-        FunctionImpl::new(String::from("MouseX"), Box::new(mouse_x), ValueType::Integer),
-        FunctionImpl::new(String::from("MouseY"), Box::new(mouse_y), ValueType::Integer),
-
-        FunctionImpl::new(String::from("Cls"), Box::new(cls), ValueType::Unit),
-        FunctionImpl::new(String::from("Flip"), Box::new(flip), ValueType::Unit),
-
-        FunctionImpl::new(String::from("Color"), Box::new(color), ValueType::Unit),
-        FunctionImpl::new(String::from("Text"), Box::new(text), ValueType::Unit)]
+        // TODO: Move specific impl tables to their respective modules
+        FunctionImpl::new(String::from("Cls"), Box::new(graphics_impls::cls), ValueType::Unit),
+        FunctionImpl::new(String::from("Color"), Box::new(graphics_impls::color), ValueType::Unit),
+        FunctionImpl::new(String::from("Text"), Box::new(graphics_impls::text), ValueType::Unit),
+        FunctionImpl::new(String::from("SetBuffer"), Box::new(graphics_impls::set_buffer), ValueType::Unit),
+        FunctionImpl::new(String::from("LockBuffer"), Box::new(graphics_impls::lock_buffer), ValueType::Unit),
+        FunctionImpl::new(String::from("UnlockBuffer"), Box::new(graphics_impls::unlock_buffer), ValueType::Unit),
+        FunctionImpl::new(String::from("WritePixelFast"), Box::new(graphics_impls::write_pixel_fast), ValueType::Unit)]
 }
 
 fn float_cast(_: &mut Context, args: &[Value]) -> Value {
@@ -102,80 +99,6 @@ fn degrees_to_radians(degrees: f32) -> f32 {
 fn cos(_: &mut Context, args: &[Value]) -> Value {
     Value::Float(degrees_to_radians(args[0].cast_to_float().as_float()).cos())
 }
-
-fn app_title(context: &mut Context, args: &[Value]) -> Value {
-    context.app_title = args[0].as_string();
-    println!("New app title: \"{}\"", context.app_title);
-
-    Value::Unit
-}
-
-fn graphics(context: &mut Context, args: &[Value]) -> Value {
-    let width = args[0].as_integer();
-    let height = args[1].as_integer();
-    let bits = args[2].as_integer();
-    let window_mode = args[3].as_integer();
-    println!(
-        "Graphics called: {}, {}, {}, {} (ignoring bits and window mode)",
-        width,
-        height,
-        bits,
-        window_mode);
-
-    context.window =
-        Some(Window::new(
-            &context.app_title,
-            width as usize,
-            height as usize,
-            Scale::X2).unwrap());
-
-    context.width = width;
-    context.height = height;
-    context.back_buffer = vec![0; (width * height) as usize];
-
-    Value::Unit
-}
-
-fn set_buffer(_context: &mut Context, _args: &[Value]) -> Value {
-    println!("WARNING: SetBuffer called but not yet implemented");
-
-    Value::Unit
-}
-
-fn back_buffer(_context: &mut Context, _args: &[Value]) -> Value {
-    println!("WARNING: BackBuffer called but not yet implemented");
-
-    Value::Integer(0)
-}
-
-fn lock_buffer(_: &mut Context, _: &[Value]) -> Value {
-    println!("LockBuffer called (and ignored)");
-
-    Value::Unit
-}
-
-fn write_pixel_fast(context: &mut Context, args: &[Value]) -> Value {
-    let x = args[0].as_integer();
-    let y = args[1].as_integer();
-    let color = args[2].as_integer() as u32;
-
-    context.back_buffer[(y * context.width + x) as usize] = color;
-
-    Value::Unit
-}
-
-fn unlock_buffer(_: &mut Context, _: &[Value]) -> Value {
-    println!("UnlockBuffer called (and ignored)");
-
-    Value::Unit
-}
-
-fn hide_pointer(_context: &mut Context, _args: &[Value]) -> Value {
-    println!("WARNING: HidePointer called but not yet implemented");
-
-    Value::Integer(0)
-}
-
 fn seed_rnd(context: &mut Context, args: &[Value]) -> Value {
     context.rng_state = 0xffff_ffff_0000_0000 | (args[0].as_integer() as u64);
 
@@ -203,89 +126,6 @@ fn rand(context: &mut Context, args: &[Value]) -> Value {
 
 fn milli_secs(_: &mut Context, _: &[Value]) -> Value {
     Value::Integer((time::precise_time_ns() / 1000000) as i32)
-}
-
-fn key_down(context: &mut Context, args: &[Value]) -> Value {
-    if let Some(ref mut window) = context.window {
-        Value::Bool(window.is_key_down(match args[0].as_integer() {
-            1 => Key::Escape,
-            _ => {
-                println!("WARNING: KeyDown called with unrecognized key; defaulting to Escape");
-
-                Key::Escape
-            }
-        }))
-    } else {
-        panic!("KeyDown called without an open window")
-    }
-}
-
-fn mouse_down(context: &mut Context, args: &[Value]) -> Value {
-    Value::Bool(if let Some(ref mut window) = context.window {
-        let button_index = args[0].as_integer();
-        window.get_mouse_down(match button_index {
-            1 => MouseButton::Left,
-            2 => MouseButton::Right,
-            3 => MouseButton::Middle,
-            _ => panic!("MouseDown called with unrecognized button index: {}", button_index)
-        })
-    } else {
-        panic!("MouseDown called without an open window")
-    })
-}
-
-fn mouse_x(context: &mut Context, _args: &[Value]) -> Value {
-    Value::Integer(if let Some(ref mut window) = context.window {
-        match window.get_mouse_pos(MouseMode::Clamp) {
-            Some((x, _)) => x as i32,
-            _ => unreachable!()
-        }
-    } else {
-        panic!("MouseX called without an open window")
-    })
-}
-
-fn mouse_y(context: &mut Context, _args: &[Value]) -> Value {
-    Value::Integer(if let Some(ref mut window) = context.window {
-        match window.get_mouse_pos(MouseMode::Clamp) {
-            Some((_, y)) => y as i32,
-            _ => unreachable!()
-        }
-    } else {
-        panic!("MouseY called without an open window")
-    })
-}
-
-fn cls(context: &mut Context, _: &[Value]) -> Value {
-    for pixel in context.back_buffer.iter_mut() {
-        *pixel = 0;
-    }
-
-    Value::Unit
-}
-
-fn flip(context: &mut Context, _: &[Value]) -> Value {
-    println!("WARNING: Flip argument ignored");
-
-    // TODO: It'd be more correct to actually swap between two buffers
-    let buffer = &context.back_buffer;
-    if let Some(ref mut window) = context.window {
-        window.update(buffer);
-    }
-
-    Value::Unit
-}
-
-fn color(_: &mut Context, _: &[Value]) -> Value {
-    println!("Color called (and ignored)");
-
-    Value::Unit
-}
-
-fn text(_: &mut Context, args: &[Value]) -> Value {
-    println!("Text called; drawing was ignored: {}, {}, {:?}", args[0].as_integer(), args[1].as_integer(), args[2].as_string());
-
-    Value::Unit
 }
 
 pub fn build_un_op_impls_table() -> Vec<((ast::Op, ValueType), FunctionImpl)> {

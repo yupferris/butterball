@@ -1,29 +1,20 @@
-use super::minifb::Window;
+use stdlib::window::Window;
+use stdlib::graphics::Graphics;
 
 pub struct Context {
-    pub app_title: String,
-
     pub rng_state: u64,
 
-    pub window: Option<Window>,
-
-    pub width: i32,
-    pub height: i32,
-    pub back_buffer: Vec<u32>
+    pub window: Window,
+    pub graphics: Graphics
 }
 
 impl Context {
     pub fn new() -> Context {
         Context {
-            app_title: String::new(),
-
             rng_state: 0xffff_ffff_0000_0000,
 
-            window: None,
-
-            width: 0,
-            height: 0,
-            back_buffer: Vec::new()
+            window: Window::default(),
+            graphics: Graphics::default()
         }
     }
 }
