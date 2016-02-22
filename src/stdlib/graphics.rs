@@ -51,6 +51,8 @@ impl Graphics {
 
     pub fn write_pixel_fast(&mut self, buffers: &mut Buffers, x: i32, y: i32, color: i32, buffer_handle: Option<i32>) {
         let buffer = &mut buffers[buffer_handle.map_or(self.current_buffer_handle, |x| x as usize)];
-        buffer.data[(y * buffer.width + x) as usize] = color as u32;
+        if x >= 0 && x < buffer.width && y >= 0 && y < buffer.height {
+            buffer.data[(y * buffer.width + x) as usize] = color as u32;
+        }
     }
 }

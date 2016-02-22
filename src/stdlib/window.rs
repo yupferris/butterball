@@ -37,7 +37,7 @@ impl Window {
                 &self.app_title,
                 width as usize,
                 height as usize,
-                minifb::Scale::X2).unwrap());
+                minifb::Scale::X1).unwrap());
 
         self.width = width;
         self.height = height;
